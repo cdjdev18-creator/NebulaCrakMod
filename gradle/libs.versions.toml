@@ -1,28 +1,21 @@
 [versions]
-mod-version = "0.1.0"
-
-# Fabric (https://fabricmc.net/develop)
-jdk = "25"
-minecraft = "26.3"
-fabric-loader = "0.19.5"
-
-# Loom (https://github.com/FabricMC/fabric-loom)
-loom = "1.18-SNAPSHOT"
-
-# Meteor (https://github.com/MeteorDevelopment/meteor-client/)
-meteor = "26.3-SNAPSHOT"
-
-# Mods
+java = "21"
+minecraft = "1.21.1"
+yarn = "1.21.1+build.1"
+fabric-loader = "0.16.9"
+fabric-api = "0.116.0+1.21.1"
+meteor-client = "1.21.1-2.0.0"
+kotlin = "2.1.10"
+gradle = "8.12"
 
 [libraries]
-# Fabric base
-minecraft = { module = "com.mojang:minecraft", version.ref = "minecraft" }
-fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabric-loader" }
-
-# Meteor client
-meteor-client = { module = "meteordevelopment:meteor-client", version.ref = "meteor" }
-
-# Mods
+fabric-loom = { module = "com.fabricmc:fabric-loom", version.ref = "gradle" }
+fabric-api = { module = "net.fabricmc:fabric-api", version.ref = "fabric-api" }
+meteor-client = { module = "dev.meteorclient:meteor-client", version.ref = "meteor-client" }
+kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+gson = { module = "com.google.code.gson:gson", version = "2.11.0" }
 
 [plugins]
-fabric-loom = { id = "net.fabricmc.fabric-loom", version.ref = "loom" }
+fabric-loom = { id = "fabric-loom", version.ref = "gradle" }
+kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

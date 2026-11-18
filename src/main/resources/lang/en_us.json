@@ -1,0 +1,26 @@
+{
+  "nebulacrakmod.name": "NebulaCrakMod",
+  "nebulacrakmod.description": "A Meteor Client addon for enhanced gameplay",
+  
+  "settings.language.name": "Language",
+  "settings.language.description": "Select the mod language",
+  
+  "command.nebulacrak.name": "nebulacrak",
+  "command.nebulacrak.description": "Main NebulaCrakMod command",
+  "command.neublacrak.help": "Available commands:",
+  "command.nebulacrak.reload": "Reload translations",
+  "command.nebulacrak.reload.success": "Translations reloaded successfully",
+  "command.nebulacrak.lang": "Change language",
+  "command.nebulacrak.lang.usage": "/nebulacrak lang <language_code>",
+  "command.nebulacrak.lang.success": "Language changed to %s",
+  "command.nebulacrak.lang.invalid": "Invalid language code. Available: %s",
+  
+  "translation.loaded": "Loaded %d translations for %s",
+  "translation.missing": "Missing translation for key: %s",
+  "translation.error": "Error loading translation file: %s",
+  
+  "compat.meteor.not_found": "Meteor Client not found. This addon requires Meteor Client.",
+  "compat.meteor.version": "Meteor Client version: %s",
+  "compat.meteor.incompatible": "Incompatible Meteor Client version. Minimum required: %s",
+  "compat.meteor.feature_missing": "Required feature not available: %s"
+}

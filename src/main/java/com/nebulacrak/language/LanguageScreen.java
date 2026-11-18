@@ -1,0 +1,39 @@
+package com.nebulacrak.language;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+
+public class LanguageScreen extends Screen {
+    private final Screen parent;
+
+    public LanguageScreen(Screen parent) {
+        super(Component.literal("NebulaCrakMod - Language"));
+        this.parent = parent;
+    }
+
+    @Override
+    protected void init() {
+        int centerX = this.width / 2;
+        int y = this.height / 2 - 30;
+        this.addRenderableWidget(Button.builder(Component.literal("English"), b -> {
+            LanguageManager.set(LanguageManager.Language.EN_US);
+            this.minecraft.setScreen(this);
+        }).bounds(centerX - 100, y, 200, 20).build());
+        this.addRenderableWidget(Button.builder(Component.literal("Español (México)"), b -> {
+            LanguageManager.set(LanguageManager.Language.ES_MX);
+            this.minecraft.setScreen(this);
+        }).bounds(centerX - 100, y + 25, 200, 20).build());
+        this.addRenderableWidget(Button.builder(Component.literal("Back"), b -> this.minecraft.setScreen(parent)).bounds(centerX - 100, y + 60, 200, 20).build());
+    }
+
+    @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 20, 0xFFFFFF);
+        String current = "Current: " + LanguageManager.code();
+        guiGraphics.drawCenteredString(this.font, Component.literal(current), this.width / 2, this.height / 2 - 50, 0xFFFFFF);
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+    }
+}
