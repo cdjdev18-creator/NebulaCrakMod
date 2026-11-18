@@ -1,1 +1,14 @@
-{"nebulacrakmod.module.cdj":"+CDJ","nebulacrakmod.module.cdj.description":"Main customization and tools module for NebulaCrakMod."}
+{
+  "meteor.category.combat": "Combat",
+  "meteor.category.player": "Player",
+  "meteor.category.movement": "Movement",
+  "meteor.category.render": "Render",
+  "meteor.category.world": "World",
+  "meteor.category.misc": "Misc",
+  "meteor.module.killaura": "KillAura",
+  "meteor.module.killaura.description": "Automatically attacks entities.",
+  "meteor.module.flight": "Flight",
+  "meteor.module.flight.description": "Allows you to fly.",
+  "meteor.module.xray": "XRay",
+  "meteor.module.xray.description": "See ores through blocks."
+}
