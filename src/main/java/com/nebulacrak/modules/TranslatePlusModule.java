@@ -7,10 +7,10 @@ import meteordevelopment.meteorclient.settings.EnumSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Category;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.systems.modules.Modules;
 import com.nebulacrak.gui.ModuleBrowserScreen;
 import net.minecraft.client.Minecraft;
+import meteordevelopment.meteorclient.systems.modules.Module;
+import meteordevelopment.meteorclient.systems.modules.Modules;
 
 public class TranslatePlusModule extends Module {
     public static final Category CATEGORY = new Category("+CDJ");
@@ -32,6 +32,16 @@ public class TranslatePlusModule extends Module {
         translateMeteor = sg.add(new BoolSetting.Builder()
             .name("translate+").description("Enable Meteor translations.")
             .defaultValue(false).build());
+
+        sg.add(new BoolSetting.Builder()
+            .name("open-module-browser").description("Open NebulaCrakMod module browser.")
+            .defaultValue(false)
+            .onChanged(v -> {
+                if (v) {
+                    Minecraft.getInstance().setScreen(new ModuleBrowserScreen(Minecraft.getInstance().screen));
+                }
+            })
+            .build());
         translationMode = sg.add(new EnumSetting.Builder<LanguageManager.Language>()
             .name("translation-mode").description("Language used for Meteor translations.")
             .defaultValue(LanguageManager.Language.EN_US)

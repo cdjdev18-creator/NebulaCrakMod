@@ -16,11 +16,13 @@ import java.util.regex.Pattern;
 public class MuteChatPlusModule extends Module {
     public static final Category CATEGORY = TranslatePlusModule.CATEGORY;
 
-    public final Setting<Boolean> muteChat;
+    public static MuteChatPlusModule INSTANCE;
+    public Setting<Boolean> muteChat;
     private static final Pattern SENDER = Pattern.compile("^<([^>]+)>");
 
     public MuteChatPlusModule() {
         super(CATEGORY, "MuteChat+", "Hide chat messages from non-friends.");
+        INSTANCE = this;
         SettingGroup sg = settings.getDefaultGroup();
         muteChat = sg.add(new BoolSetting.Builder()
             .name("mute-chat+").description("Hide normal messages from non-friends.")
