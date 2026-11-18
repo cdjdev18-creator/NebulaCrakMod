@@ -2,6 +2,7 @@ package com.nebulacrak;
 
 import meteordevelopment.meteorclient.addons.MeteorAddon;
 import com.nebulacrak.language.LanguageManager;
+import com.nebulacrak.modules.CdjModule;
 import com.nebulacrak.translation.TranslationManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

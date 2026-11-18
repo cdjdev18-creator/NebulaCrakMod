@@ -36,4 +36,3 @@ public class TranslationManager {
         load();
     }
 }
-EOF

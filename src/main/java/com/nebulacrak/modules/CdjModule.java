@@ -1,5 +1,6 @@
 package com.nebulacrak.modules;
 
+import com.nebulacrak.language.LanguageManager;
 import com.nebulacrak.translation.TranslationManager;
 import meteordevelopment.meteorclient.events.game.ReceiveMessageEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
