@@ -5,10 +5,62 @@
   "meteor.category.render": "Render",
   "meteor.category.world": "World",
   "meteor.category.misc": "Misc",
+  "meteor.category.chat": "Chat",
+  "meteor.category.exploit": "Exploit",
+
+  "meteor.gui.modules": "Modules",
+  "meteor.gui.hud": "HUD",
+  "meteor.gui.config": "Configuration",
+  "meteor.gui.settings": "Settings",
+  "meteor.gui.bind": "Bind",
+  "meteor.gui.active": "Active",
+  "meteor.gui.search": "Search modules...",
+
   "meteor.module.killaura": "KillAura",
   "meteor.module.killaura.description": "Automatically attacks entities.",
+  
   "meteor.module.flight": "Flight",
   "meteor.module.flight.description": "Allows you to fly.",
+  
   "meteor.module.xray": "XRay",
-  "meteor.module.xray.description": "See ores through blocks."
+  "meteor.module.xray.description": "See ores through blocks.",
+
+  "meteor.module.crystalaura": "CrystalAura",
+  "meteor.module.crystalaura.description": "Automatically places and detonates End Crystals for PvP.",
+
+  "meteor.module.speed": "Speed",
+  "meteor.module.speed.description": "Modifies your movement speed.",
+
+  "meteor.module.esp": "ESP",
+  "meteor.module.esp.description": "Highlights entities or blocks through walls.",
+
+  "meteor.module.fullbright": "Fullbright",
+  "meteor.module.fullbright.description": "Completely removes darkness.",
+
+  "meteor.module.freecam": "Freecam",
+  "meteor.module.freecam.description": "Allows you to move your camera freely outside your body.",
+
+  "meteor.module.jesus": "Jesus",
+  "meteor.module.jesus.description": "Allows you to walk on water.",
+
+  "meteor.module.safewalk": "SafeWalk",
+  "meteor.module.safewalk.description": "Prevents you from walking off the edge of blocks.",
+
+  "meteor.module.scaffold": "Scaffold",
+  "meteor.module.scaffold.description": "Automatically places blocks beneath you while walking.",
+
+  "meteor.module.autototem": "AutoTotem",
+  "meteor.module.autototem.description": "Automatically equips a totem in your off-hand when in danger.",
+
+  "meteor.module.nametags": "Nametags",
+  "meteor.module.nametags.description": "Enhances player nametags by displaying health and armor.",
+
+  "meteor.module.tracers": "Tracers",
+  "meteor.module.tracers.description": "Draws lines to entities around you.",
+
+  "meteor.module.velocity": "Velocity",
+  "meteor.module.velocity.description": "Modifies or cancels knockback from attacks and explosions.",
+
+  "meteor.module.antiknowback": "AntiKnockback",
+  "meteor.module.antiknowback.description": "Prevents you from taking knockback."
 }

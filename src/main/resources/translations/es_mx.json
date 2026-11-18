@@ -4,11 +4,63 @@
   "meteor.category.movement": "Movimiento",
   "meteor.category.render": "Renderizado",
   "meteor.category.world": "Mundo",
-  "meteor.category.misc": "Varios",
+  "meteor.category.misc": "Misceláneo",
+  "meteor.category.chat": "Chat",
+  "meteor.category.exploit": "Explotación",
+
+  "meteor.gui.modules": "Módulos",
+  "meteor.gui.hud": "HUD",
+  "meteor.gui.config": "Configuración",
+  "meteor.gui.settings": "Ajustes",
+  "meteor.gui.bind": "Atajo",
+  "meteor.gui.active": "Activo",
+  "meteor.gui.search": "Buscar módulos...",
+
   "meteor.module.killaura": "KillAura",
-  "meteor.module.killaura.description": "Ataca entidades automaticamente.",
+  "meteor.module.killaura.description": "Ataca entidades automáticamente.",
+  
   "meteor.module.flight": "Vuelo",
   "meteor.module.flight.description": "Te permite volar.",
-  "meteor.module.xray": "Rayos X",
-  "meteor.module.xray.description": "Ver minerales a traves de bloques."
+  
+  "meteor.module.xray": "XRay",
+  "meteor.module.xray.description": "Permite ver minerales a través de los bloques.",
+
+  "meteor.module.crystalaura": "CrystalAura",
+  "meteor.module.crystalaura.description": "Coloca y detona cristales del End automáticamente para PvP.",
+
+  "meteor.module.speed": "Velocidad",
+  "meteor.module.speed.description": "Modifica tu velocidad de movimiento.",
+
+  "meteor.module.esp": "ESP",
+  "meteor.module.esp.description": "Resalta entidades o bloques a través de las paredes.",
+
+  "meteor.module.fullbright": "Brillo Completo",
+  "meteor.module.fullbright.description": "Elimina la oscuridad por completo.",
+
+  "meteor.module.freecam": "Cámara Libre",
+  "meteor.module.freecam.description": "Te permite mover tu cámara libremente fuera de tu cuerpo.",
+
+  "meteor.module.jesus": "Jesús",
+  "meteor.module.jesus.description": "Te permite caminar sobre el agua.",
+
+  "meteor.module.safewalk": "Caminata Segura",
+  "meteor.module.safewalk.description": "Evita que te caigas de los bordes de los bloques.",
+
+  "meteor.module.scaffold": "Scaffold",
+  "meteor.module.scaffold.description": "Coloca bloques automáticamente debajo de ti mientras caminas.",
+
+  "meteor.module.autototem": "AutoTotem",
+  "meteor.module.autototem.description": "Equipa un tótem en tu mano secundaria automáticamente cuando estás en peligro.",
+
+  "meteor.module.nametags": "Etiquetas de Nombres",
+  "meteor.module.nametags.description": "Mejora las etiquetas de los jugadores mostrando su salud y armadura.",
+
+  "meteor.module.tracers": "Tracers",
+  "meteor.module.tracers.description": "Dibuja líneas hacia las entidades que te rodean.",
+
+  "meteor.module.velocity": "Velocidad de impacto",
+  "meteor.module.velocity.description": "Modifica o anula el retroceso (knockback) por ataques y explosiones.",
+
+  "meteor.module.antiknowback": "AntiKnockback",
+  "meteor.module.antiknowback.description": "Evita que recibas retroceso."
 }
