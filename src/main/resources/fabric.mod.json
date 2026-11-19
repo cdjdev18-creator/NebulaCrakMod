@@ -1,1 +1,38 @@
-{"schemaVersion":1,"id":"nebulacrakmod","version":"${version}","name":"NebulaCrakMod","description":"A Meteor Client addon with custom features, commands, and translation support.","authors":["CDJ dev 18"],"environment":"client","entrypoints":{"meteor":["com.nebulacrak.NebulaCrakMod"]},"mixins":["nebulacrakmod.mixins.json"],"depends":{"java":">=${jdk_version}","minecraft":"${minecraft_version}","meteor-client":"*"}}
+{
+  "schemaVersion": 1,
+  "id": "nebulacrakmod",
+  "version": "${version}",
+  "name": "NebulaCrakMod",
+  "description": "A Meteor Client addon with custom features, commands, and translation support.",
+  "authors": [
+    "CDJ dev 18"
+  ],
+  "contact": {
+    "homepage": "https://github.com/NebulaCrak/NebulaCrakMod",
+    "sources": "https://github.com/NebulaCrak/NebulaCrakMod",
+    "issues": "https://github.com/NebulaCrak/NebulaCrakMod/issues"
+  },
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "com.nebulacrak.NebulaCrakMod"
+    ],
+    "client": [
+      "com.nebulacrak.NebulaCrakModClient"
+    ]
+  },
+  "mixins": [
+    "nebulacrakmod.mixins.json"
+  ],
+  "depends": {
+    "java": ">=${jdk_version}",
+    "minecraft": "${minecraft_version}",
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "meteor-client": "*"
+  },
+  "custom": {
+    "meteor-client:color": "8B5CF6"
+  }
+}

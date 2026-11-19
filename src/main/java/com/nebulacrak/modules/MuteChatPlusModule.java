@@ -1,24 +1,20 @@
 package com.nebulacrak.modules;
 
-import meteordevelopment.meteorclient.events.game.ReceiveMessageEvent;
+import com.nebulacrak.gui.NebulaModules;
+import com.nebulacrak.translation.TranslationManager;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.friends.Friends;
 import meteordevelopment.meteorclient.systems.modules.Category;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
-import meteordevelopment.orbit.EventHandler;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import net.minecraft.client.Minecraft;
 
 public class MuteChatPlusModule extends Module {
-    public static final Category CATEGORY = TranslatePlusModule.CATEGORY;
+    public static final Category CATEGORY = NebulaModules.NEBULA_CHAT;
 
     public static MuteChatPlusModule INSTANCE;
     public Setting<Boolean> muteChat;
-    private static final Pattern SENDER = Pattern.compile("^<([^>]+)>");
 
     public MuteChatPlusModule() {
         super(CATEGORY, "MuteChat+", "Hide chat messages from non-friends.");
@@ -26,18 +22,32 @@ public class MuteChatPlusModule extends Module {
         SettingGroup sg = settings.getDefaultGroup();
         muteChat = sg.add(new BoolSetting.Builder()
             .name("mute-chat+").description("Hide normal messages from non-friends.")
-            .defaultValue(false).build());
+            .defaultValue(true).build());
     }
 
-    @EventHandler
-    private void onReceiveMessage(ReceiveMessageEvent event) {
-        if (!isActive() || !muteChat.get()) return;
-        Matcher m = SENDER.matcher(event.getMessage().getString());
-        if (!m.find()) return;
-        String sender = m.group(1);
-        if (Friends.get().get(sender) != null) return;
-        event.cancel();
+    @Override
+    public void onActivate() {
+        if (Minecraft.getInstance().player != null) {
+            Minecraft.getInstance().player.displayClientMessage(
+                net.minecraft.network.chat.Component.literal(
+                    TranslationManager.get("nebula.mutechat.enabled", "[MuteChat+] Activado")
+                ), false);
+        }
     }
 
-    public static void register() { Modules.get().add(new MuteChatPlusModule()); }
+    @Override
+    public void onDeactivate() {
+        if (Minecraft.getInstance().player != null) {
+            Minecraft.getInstance().player.displayClientMessage(
+                net.minecraft.network.chat.Component.literal(
+                    TranslationManager.get("nebula.mutechat.disabled", "[MuteChat+] Desactivado")
+                ), false);
+        }
+    }
+
+    public static void register() {
+        if (INSTANCE == null) {
+            Modules.get().add(new MuteChatPlusModule());
+        }
+    }
 }

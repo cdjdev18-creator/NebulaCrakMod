@@ -1,5 +1,7 @@
 package com.nebulacrak.modules;
 
+import com.nebulacrak.gui.NebulaGUIScreen;
+import com.nebulacrak.gui.NebulaModules;
 import com.nebulacrak.language.LanguageManager;
 import com.nebulacrak.translation.TranslationManager;
 import meteordevelopment.meteorclient.settings.BoolSetting;
@@ -7,13 +9,13 @@ import meteordevelopment.meteorclient.settings.EnumSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Category;
-import com.nebulacrak.gui.ModuleBrowserScreen;
 import net.minecraft.client.Minecraft;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 
 public class TranslatePlusModule extends Module {
-    public static final Category CATEGORY = new Category("+CDJ");
+    public static final Category CATEGORY = NebulaModules.NEBULA_MISC;
+    public static TranslatePlusModule INSTANCE;
 
     public final Setting<LanguageManager.Language> language;
     public final Setting<Boolean> translateMeteor;
@@ -23,6 +25,7 @@ public class TranslatePlusModule extends Module {
 
     public TranslatePlusModule() {
         super(CATEGORY, "Translate+", "Translation settings for NebulaCrakMod.");
+        INSTANCE = this;
         SettingGroup sg = settings.getDefaultGroup();
         language = sg.add(new EnumSetting.Builder<LanguageManager.Language>()
             .name("language").description("Interface language.")
@@ -38,7 +41,11 @@ public class TranslatePlusModule extends Module {
             .defaultValue(false)
             .onChanged(v -> {
                 if (v) {
-                    Minecraft.getInstance().setScreen(new ModuleBrowserScreen(Minecraft.getInstance().screen));
+                    Minecraft.getInstance().setScreen(new NebulaGUIScreen(Minecraft.getInstance().screen));
+                    Setting<?> setting = sg.get("open-module-browser");
+                    if (setting instanceof BoolSetting boolSetting) {
+                        boolSetting.set(false);
+                    }
                 }
             })
             .build());
@@ -57,5 +64,9 @@ public class TranslatePlusModule extends Module {
         syncing = false;
     }
 
-    public static void register() { Modules.get().add(new TranslatePlusModule()); }
+    public static void register() {
+        if (INSTANCE == null) {
+            Modules.get().add(new TranslatePlusModule());
+        }
+    }
 }

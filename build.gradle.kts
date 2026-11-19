@@ -27,6 +27,7 @@ dependencies {
     minecraft("com.mojang:minecraft:${property("minecraft_version")}")
     mappings(loom.officialMojangMappings())
     modImplementation("net.fabricmc:fabric-loader:${property("loader_version")}")
+    modImplementation("net.fabricmc.fabric-api:fabric-api:0.141.6+1.21.11")
     modImplementation("meteordevelopment:meteor-client:${property("meteor_version")}")
 }
 

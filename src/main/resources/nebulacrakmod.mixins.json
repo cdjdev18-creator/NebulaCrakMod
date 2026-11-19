@@ -1,1 +1,11 @@
-{"required":true,"minVersion":"0.8","package":"com.nebulacrak.mixin","compatibilityLevel":"JAVA_21","mixins":[],"client":["TitleScreenMixin","ChatListenerMixin"],"injectors":{"defaultRequire":1}}
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.nebulacrak.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [],
+  "client": ["ChatListenerFilterMixin"],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
