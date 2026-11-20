@@ -1,5 +1,6 @@
 package com.nebulacrak.gui;
 
+import com.nebulacrak.gui.FontManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -115,7 +116,7 @@ public class ColorInputButton extends AbstractWidget {
     @Override
     protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         Minecraft minecraft = Minecraft.getInstance();
-        Font font = minecraft.font;
+        Font font = FontManager.getCurrentFont();
         boolean hovered = isMouseOver(mouseX, mouseY);
 
         int x = getX();
