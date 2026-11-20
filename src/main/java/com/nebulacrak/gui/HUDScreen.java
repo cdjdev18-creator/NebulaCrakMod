@@ -5,6 +5,7 @@ import com.nebulacrak.config.NebulaConfig;
 import com.nebulacrak.translation.TranslationManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -55,7 +56,7 @@ public class HUDScreen {
      * El caller (NebulaGUIScreen) los añade al árbol de widgets.
      */
     public static void build(Screen parent, int left, int top, int width,
-                             List<CompactButton> widgets, Runnable rebuild) {
+                             List<AbstractWidget> widgets, Runnable rebuild) {
         int y = top + 4;
 
         // ── SECCIÓN 1: FONDO DE INTERFAZ ──────────────────────────────────────
@@ -201,7 +202,7 @@ public class HUDScreen {
     //  HELPERS DE CONSTRUCCIÓN
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private static int buildSectionHeader(List<CompactButton> sink, Runnable rebuild,
+    private static int buildSectionHeader(List<AbstractWidget> sink, Runnable rebuild,
                                            int left, int y, int width,
                                            String title, String key, boolean expanded,
                                            Consumer<Boolean> toggle) {
@@ -226,10 +227,10 @@ public class HUDScreen {
         return y + 22;
     }
 
-    private static int buildToggle(List<CompactButton> sink, Runnable rebuild,
-                                    int left, int y, int width,
-                                    String label, boolean value,
-                                    Consumer<Boolean> setter) {
+private static int buildToggle(List<AbstractWidget> sink, Runnable rebuild,
+                                      int left, int y, int width,
+                                      String label, boolean value,
+                                      Consumer<Boolean> setter) {
         int btnW = 40, btnH = 18;
         int btnX = left + width - btnW - 4;
 
@@ -248,7 +249,7 @@ public class HUDScreen {
         return y + 20;
     }
 
-    private static int buildModeSelector(List<CompactButton> sink, Runnable rebuild,
+    private static int buildModeSelector(List<AbstractWidget> sink, Runnable rebuild,
                                           int left, int y, int width,
                                           int current, String[] options,
                                           Consumer<Integer> setter) {
@@ -265,7 +266,7 @@ public class HUDScreen {
         return y;
     }
 
-    private static int buildColorPicker(List<CompactButton> sink, Runnable rebuild,
+    private static int buildColorPicker(List<AbstractWidget> sink, Runnable rebuild,
                                          int left, int y, int width,
                                          int currentColor,
                                          Consumer<Integer> setter) {
@@ -299,10 +300,21 @@ public class HUDScreen {
             };
             sink.add(swatch);
         }
-        return y + swatchSize + 4;
+        y += swatchSize + 8;
+
+        // HEX/RGB Color Input
+        String hexLabel = TranslationManager.get("gui.nebula.hud.color.hex", "HEX: #RRGGBBAA");
+        ColorInputButton hexInput = new ColorInputButton(left + 4, y, width - 8, 22, currentColor, c -> {
+            setter.accept(c);
+            rebuild.run();
+        });
+        sink.add(hexInput);
+        y += 26;
+
+        return y;
     }
 
-    private static int buildImageSelector(List<CompactButton> sink, Runnable rebuild,
+    private static int buildImageSelector(List<AbstractWidget> sink, Runnable rebuild,
                                            int left, int y, int width,
                                            String type, // "fondo" o "splash"
                                            String currentPath,

@@ -2,6 +2,7 @@ package com.nebulacrak.gui;
 
 import com.nebulacrak.config.ConfiColorsConfig;
 import com.nebulacrak.config.NebulaConfig;
+import com.nebulacrak.gui.NebulaTextureManager;
 import com.nebulacrak.language.LanguageManager;
 import com.nebulacrak.translation.TranslationManager;
 import meteordevelopment.meteorclient.MeteorClient;
@@ -10,6 +11,7 @@ import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -47,14 +49,18 @@ public class NebulaGUIScreen extends Screen {
     private final Map<String, Boolean> categoryExpandedStates = new HashMap<>();
 
     // ── Widgets ──────────────────────────────────────────────────────────────
-    private final List<CompactButton> navButtons     = new ArrayList<>();
-    private final List<CompactButton> contentButtons = new ArrayList<>();
+    private final List<AbstractWidget> navButtons     = new ArrayList<>();
+    private final List<AbstractWidget> contentButtons = new ArrayList<>();
     private CompactButton languageButton;
 
     // ── Scroll ───────────────────────────────────────────────────────────────
     private int scrollOffset = 0;
     private int maxScroll    = 0;
     private static final int CONTENT_START_Y = 32;
+
+    // ── CONFI tab state ──────────────────────────────────────────────────────
+    private boolean waitingForKeybind = false;
+    private int pendingKeyCode = -1;
 
     // ── Firma tricolor (calculada en init) ───────────────────────────────────
     private int sigEndX = 0;
@@ -138,22 +144,24 @@ public class NebulaGUIScreen extends Screen {
     // ═══════════════════════════════════════════════════════════════════════════
     private void rebuild() {
         // Limpiar contenido anterior
-        for (CompactButton b : contentButtons) removeWidget(b);
+        for (AbstractWidget b : contentButtons) removeWidget(b);
         contentButtons.clear();
 
         // Actualizar estado visual de tabs
-        for (CompactButton b : navButtons) {
-            String msg = b.getMessage().getString();
-            if (msg.equals(TranslationManager.get("nebula.tab.nebula", "NebulaCrakMod")))
-                b.setSelected(currentTab == Tab.NEBULA);
-            else if (msg.equals(TranslationManager.get("nebula.tab.meteor", "Módulos Meteor")))
-                b.setSelected(currentTab == Tab.METEOR);
-            else if (msg.equals(TranslationManager.get("nebula.tab.hud", "HUD")))
-                b.setSelected(currentTab == Tab.HUD);
-            else if (msg.equals(TranslationManager.get("nebula.tab.edit_mc", "EDIT,MC")))
-                b.setSelected(currentTab == Tab.EDIT_MC);
-            else if (msg.equals(TranslationManager.get("nebula.tab.conf", "CONFI")))
-                b.setSelected(currentTab == Tab.CONFI);
+        for (AbstractWidget w : navButtons) {
+            if (w instanceof CompactButton b) {
+                String msg = b.getMessage().getString();
+                if (msg.equals(TranslationManager.get("nebula.tab.nebula", "NebulaCrakMod")))
+                    b.setSelected(currentTab == Tab.NEBULA);
+                else if (msg.equals(TranslationManager.get("nebula.tab.meteor", "Módulos Meteor")))
+                    b.setSelected(currentTab == Tab.METEOR);
+                else if (msg.equals(TranslationManager.get("nebula.tab.hud", "HUD")))
+                    b.setSelected(currentTab == Tab.HUD);
+                else if (msg.equals(TranslationManager.get("nebula.tab.edit_mc", "EDIT,MC")))
+                    b.setSelected(currentTab == Tab.EDIT_MC);
+                else if (msg.equals(TranslationManager.get("nebula.tab.conf", "CONFI")))
+                    b.setSelected(currentTab == Tab.CONFI);
+            }
         }
 
         int panelW    = Math.min(400, this.width - 24);
@@ -174,14 +182,14 @@ public class NebulaGUIScreen extends Screen {
         updateWidgetVisibility();
     }
 
-    private void addContent(CompactButton btn) {
+    private void addContent(AbstractWidget btn) {
         contentButtons.add(btn);
         addRenderableWidget(btn);
     }
 
     private void updateWidgetVisibility() {
         int bottom = this.height - 8;
-        for (CompactButton b : contentButtons) {
+        for (AbstractWidget b : contentButtons) {
             boolean vis = b.getY() >= CONTENT_START_Y - 2 && b.getY() + b.getHeight() <= bottom + 2;
             b.visible = vis;
             b.active  = vis;
@@ -292,9 +300,9 @@ public class NebulaGUIScreen extends Screen {
     //  TAB: HUD
     // ═══════════════════════════════════════════════════════════════════════════
     private void renderHUD(int left, int y, int width) {
-        List<CompactButton> bucket = new ArrayList<>();
+        List<AbstractWidget> bucket = new ArrayList<>();
         HUDScreen.build(this, left, y, width, bucket, this::rebuild);
-        for (CompactButton btn : bucket) addContent(btn);
+        for (AbstractWidget btn : bucket) addContent(btn);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -308,13 +316,118 @@ public class NebulaGUIScreen extends Screen {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    //  TAB: CONFI (Placeholder)
+    //  TAB: CONFI
     // ═══════════════════════════════════════════════════════════════════════════
     private void renderConfi(int left, int y, int width) {
-        CompactButton placeholder = new CompactButton(left, y, width, 20,
-                Component.literal(TranslationManager.get("gui.nebula.confi.placeholder", "CONFI - En desarrollo")),
-                b -> {}, CompactButton.Type.CATEGORY);
-        addContent(placeholder);
+        // ── Tecla de apertura ──────────────────────────────────────────────────
+        String keyName = GLFW.glfwGetKeyName(NebulaConfig.openKeyCode, 0);
+        if (keyName == null) keyName = "Unknown (" + NebulaConfig.openKeyCode + ")";
+        keyName = keyName.toUpperCase();
+
+        String keybindTitle = TranslationManager.get("confi.keybind.title", "Open Key");
+        String keybindDesc = TranslationManager.get("confi.keybind.desc", "Key to open/close the NebulaCrakMod GUI.");
+        String currentLabel = TranslationManager.get("confi.keybind.current", "Current: ");
+        String changeLabel = waitingForKeybind ? TranslationManager.get("confi.keybind.waiting", "Press any key...") : TranslationManager.get("confi.keybind.change", "Change Key");
+
+        // Título de sección
+        CompactButton keybindHeader = new CompactButton(left, y, width, 18,
+                Component.literal(keybindTitle + "  " + keybindDesc),
+                b -> {}, CompactButton.Type.SECTION);
+        addContent(keybindHeader);
+        y += 22;
+
+        // Tecla actual + botón cambiar
+        int btnW = 120, btnH = 20;
+        int btnX = left + width - btnW - 4;
+
+        CompactButton currentKeyBtn = new CompactButton(left, y, width - btnW - 8, btnH,
+                Component.literal(currentLabel + keyName),
+                b -> {}, CompactButton.Type.LABEL);
+        addContent(currentKeyBtn);
+
+        CompactButton changeKeyBtn = new CompactButton(btnX, y, btnW, btnH,
+                Component.literal(changeLabel),
+                b -> { waitingForKeybind = true; rebuild(); },
+                waitingForKeybind ? CompactButton.Type.DANGER : CompactButton.Type.SETTINGS);
+        changeKeyBtn.setActivated(waitingForKeybind);
+        addContent(changeKeyBtn);
+        y += 26;
+
+        // ── Cerrar con tecla de apertura ───────────────────────────────────────
+        String closeKeyTitle = TranslationManager.get("confi.close_with_key.title", "Close with Open Key");
+        String closeKeyDesc = TranslationManager.get("confi.close_with_key.desc", "When enabled, the same key that opens the GUI also closes it.");
+
+        CompactButton closeKeyHeader = new CompactButton(left, y, width, 18,
+                Component.literal(closeKeyTitle + "  " + closeKeyDesc),
+                b -> {}, CompactButton.Type.SECTION);
+        addContent(closeKeyHeader);
+        y += 22;
+
+        String onLabel = TranslationManager.get("confi.state.on", "ON");
+        String offLabel = TranslationManager.get("confi.state.off", "OFF");
+        String closeKeyState = NebulaConfig.closeWithOpenKey ? " [" + onLabel + "]" : " [" + offLabel + "]";
+
+        CompactButton closeKeyBtn = new CompactButton(left, y, width, 20,
+                Component.literal(closeKeyTitle + closeKeyState),
+                b -> { NebulaConfig.closeWithOpenKey = !NebulaConfig.closeWithOpenKey; NebulaConfig.save(); rebuild(); },
+                NebulaConfig.closeWithOpenKey ? CompactButton.Type.MODULE : CompactButton.Type.MODULE);
+        closeKeyBtn.setActivated(NebulaConfig.closeWithOpenKey);
+        addContent(closeKeyBtn);
+        y += 26;
+
+        // ── Tipo de letra ──────────────────────────────────────────────────────
+        String fontTitle = TranslationManager.get("confi.font.title", "Font");
+        String fontDesc = TranslationManager.get("confi.font.fallback", "Fallback to default if unavailable");
+        String arialLabel = TranslationManager.get("confi.font.arial", "Arial");
+        String consolasLabel = TranslationManager.get("confi.font.consolas", "Consolas");
+
+        CompactButton fontHeader = new CompactButton(left, y, width, 18,
+                Component.literal(fontTitle + "  " + fontDesc),
+                b -> {}, CompactButton.Type.SECTION);
+        addContent(fontHeader);
+        y += 22;
+
+        String[] fontOptions = { arialLabel, consolasLabel };
+        int currentFontIdx = NebulaConfig.fontType.ordinal();
+
+        for (int i = 0; i < fontOptions.length; i++) {
+            final int idx = i;
+            boolean selected = (currentFontIdx == idx);
+            CompactButton fontBtn = new CompactButton(left + 4, y, width - 8, 20,
+                    Component.literal(fontOptions[i]),
+                    b -> { NebulaConfig.fontType = NebulaConfig.FontType.values()[idx]; NebulaConfig.save(); rebuild(); },
+                    selected ? CompactButton.Type.SELECTED : CompactButton.Type.SETTINGS);
+            addContent(fontBtn);
+            y += 22;
+        }
+        y += 4;
+
+        // ── Estilo de botones ──────────────────────────────────────────────────
+        String styleTitle = TranslationManager.get("confi.button_style.title", "Button Style");
+        String styleDesc = TranslationManager.get("confi.button_style.desc", "Changes the appearance of buttons in NebulaCrakMod GUI.");
+        String defaultLabel = TranslationManager.get("confi.button_style.default", "Default (Minecraft)");
+        String transparentLabel = TranslationManager.get("confi.button_style.transparent", "Transparent");
+        String meteorLabel = TranslationManager.get("confi.button_style.meteor", "Meteor");
+
+        CompactButton styleHeader = new CompactButton(left, y, width, 18,
+                Component.literal(styleTitle + "  " + styleDesc),
+                b -> {}, CompactButton.Type.SECTION);
+        addContent(styleHeader);
+        y += 22;
+
+        String[] styleOptions = { defaultLabel, transparentLabel, meteorLabel };
+        int currentStyleIdx = NebulaConfig.buttonStyle.ordinal();
+
+        for (int i = 0; i < styleOptions.length; i++) {
+            final int idx = i;
+            boolean selected = (currentStyleIdx == idx);
+            CompactButton styleBtn = new CompactButton(left + 4, y, width - 8, 20,
+                    Component.literal(styleOptions[i]),
+                    b -> { NebulaConfig.buttonStyle = NebulaConfig.ButtonStyle.values()[idx]; NebulaConfig.save(); rebuild(); },
+                    selected ? CompactButton.Type.SELECTED : CompactButton.Type.SETTINGS);
+            addContent(styleBtn);
+            y += 22;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -349,7 +462,7 @@ public class NebulaGUIScreen extends Screen {
     // ═══════════════════════════════════════════════════════════════════════════
     private void calculateMaxScroll() {
         int totalH = 0;
-        for (CompactButton b : contentButtons) {
+        for (AbstractWidget b : contentButtons) {
             int bBottom = (b.getY() + scrollOffset) + b.getHeight();
             if (bBottom > totalH) totalH = bBottom;
         }
@@ -408,8 +521,33 @@ public class NebulaGUIScreen extends Screen {
     // ═══════════════════════════════════════════════════════════════════════════
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (event.key() == GLFW.GLFW_KEY_GRAVE_ACCENT || event.key() == GLFW.GLFW_KEY_ESCAPE) {
-            onClose(); return true;
+        int key = event.key();
+
+        // Handle keybind change mode
+        if (waitingForKeybind) {
+            // Ignore ESC - it cancels the keybind change
+            if (key == GLFW.GLFW_KEY_ESCAPE) {
+                waitingForKeybind = false;
+                rebuild();
+                return true;
+            }
+            // Set the new keybind
+            NebulaConfig.openKeyCode = key;
+            NebulaConfig.save();
+            NebulaKeybinds.updateKeyBinding();
+            waitingForKeybind = false;
+            rebuild();
+            return true;
+        }
+
+        if (key == GLFW.GLFW_KEY_ESCAPE) {
+            onClose();
+            return true;
+        }
+        // Close with open key (if enabled in CONFI)
+        if (key == NebulaConfig.openKeyCode && NebulaConfig.closeWithOpenKey) {
+            onClose();
+            return true;
         }
         return super.keyPressed(event);
     }
@@ -485,9 +623,21 @@ public class NebulaGUIScreen extends Screen {
         }
 
         if (mode == ConfiColorsConfig.FondoMode.IMAGE) {
-            // Imagen: por compatibilidad con Mojang mappings, usar color de fallback
-            // TODO: Implementar carga de imagen cuando se use mapeo Yarn
-            g.fill(0, 0, this.width, this.height, ConfiColorsConfig.fondoColor | 0xFF000000);
+            // Cargar y renderizar imagen personalizada
+            Object texture = NebulaTextureManager.getTexture("fondo");
+            if (texture == null && !ConfiColorsConfig.fondoImageBase64.isEmpty()) {
+                texture = NebulaTextureManager.loadTextureFromBase64("fondo", ConfiColorsConfig.fondoImageBase64);
+            } else if (texture == null && !ConfiColorsConfig.fondoImagePath.isEmpty()) {
+                texture = NebulaTextureManager.loadTextureFromFile("fondo", ConfiColorsConfig.fondoImagePath);
+            }
+
+            if (texture != null) {
+                // Renderizar imagen escalada a toda la pantalla
+                NebulaTextureManager.blit(g, texture, 0, 0, 0, 0, this.width, this.height, this.width, this.height);
+            } else {
+                // Fallback a color
+                g.fill(0, 0, this.width, this.height, ConfiColorsConfig.fondoColor | 0xFF000000);
+            }
         }
     }
 

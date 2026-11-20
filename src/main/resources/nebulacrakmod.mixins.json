@@ -4,7 +4,12 @@
   "package": "com.nebulacrak.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
-  "client": ["ChatListenerFilterMixin"],
+  "client": [
+    "ChatListenerFilterMixin",
+    "TitleScreenMixin",
+    "SplashOverlayMixin",
+    "LoadingOverlayMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

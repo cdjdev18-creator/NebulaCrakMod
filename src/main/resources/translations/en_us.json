@@ -51,7 +51,9 @@
 
   "nebula.tab.nebula":  "NebulaCrakMod",
   "nebula.tab.meteor":  "Meteor Modules",
-  "nebula.tab.confi":   "ConfiColors",
+  "nebula.tab.hud":     "HUD",
+  "nebula.tab.edit_mc": "EDIT,MC",
+  "nebula.tab.conf":    "CONFI",
   "nebula.section.root": "NebulaCrakMod",
   "nebula.category.player": "Player",
   "nebula.category.chat":   "Chat",
@@ -98,5 +100,31 @@
   "confi.image.help":        "Place image in config/nebulacrakmod/bg.png",
   "confi.image.use_default": "Use bg.png",
   "confi.image.use_splash":  "Use splash.png",
-  "confi.image.clear":       "Remove image"
+  "confi.image.clear":       "Remove image",
+
+  "confi.keybind.title":           "Open Key",
+  "confi.keybind.current":         "Current: ",
+  "confi.keybind.change":          "Change Key",
+  "confi.keybind.waiting":         "Press any key...",
+  "confi.keybind.conflict":        "Conflicts with: ",
+  "confi.close_with_key.title":    "Close with Open Key",
+  "confi.close_with_key.desc":     "When enabled, the same key that opens the GUI also closes it.",
+  "confi.font.title":              "Font",
+  "confi.font.arial":              "Arial",
+  "confi.font.consolas":           "Consolas",
+  "confi.font.fallback":           "Fallback to default if unavailable",
+  "confi.button_style.title":      "Button Style",
+  "confi.button_style.default":    "Default (Minecraft)",
+  "confi.button_style.transparent": "Transparent",
+  "confi.button_style.meteor":     "Meteor",
+  "confi.button_style.desc":       "Changes the appearance of buttons in NebulaCrakMod GUI.",
+  "confi.keybind.desc":            "Key to open/close the NebulaCrakMod GUI.",
+
+  "gui.nebula.edit_mc.main_menu.title":   "Main Menu",
+  "gui.nebula.edit_mc.main_menu.desc":    "Customize the main menu background.",
+  "gui.nebula.edit_mc.mojang.title":      "Mojang Screen",
+  "gui.nebula.edit_mc.mojang.desc":       "Change the red background of the Mojang splash screen (logo preserved).",
+  "gui.nebula.edit_mc.loading.title":     "Loading Screens",
+  "gui.nebula.edit_mc.loading.desc":      "Customize loading screen backgrounds for game and resource packs.",
+  "gui.nebula.hud.color.hex":             "HEX: #RRGGBBAA"
 }
