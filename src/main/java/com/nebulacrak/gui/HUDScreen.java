@@ -3,11 +3,11 @@ package com.nebulacrak.gui;
 import com.nebulacrak.config.ConfiColorsConfig;
 import com.nebulacrak.config.NebulaConfig;
 import com.nebulacrak.translation.TranslationManager;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.AbstractWidget;
+import net.minecraft.client.input.mouse.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
@@ -212,7 +212,7 @@ public class HUDScreen {
                 b -> toggle.accept(!expanded),
                 CompactButton.Type.SECTION) {
             @Override
-            protected void renderWidget(GuiGraphics g, int mx, int my, float pt) {
+            protected void renderWidget(DrawContext g, int mx, int my, float pt) {
                 int x = getX(), iy = getY(), w = getWidth(), h = getHeight();
                 // Fondo
                 g.fill(x, iy, x + w, iy + h, 0xFF1E1E2A);
@@ -220,17 +220,17 @@ public class HUDScreen {
                 String text = (expanded ? "▼ " : "▶ ") + title;
                 int tx = x + 8;
                 int ty = iy + (h - 8) / 2;
-                g.drawString(Minecraft.getInstance().font, text, tx, ty, 0xFFFFFFFF, false);
+                g.drawText(MinecraftClient.getInstance().textRenderer, text, tx, ty, 0xFFFFFFFF, false);
             }
         };
         sink.add(sectionBtn);
         return y + 22;
     }
 
-private static int buildToggle(List<AbstractWidget> sink, Runnable rebuild,
-                                      int left, int y, int width,
-                                      String label, boolean value,
-                                      Consumer<Boolean> setter) {
+    private static int buildToggle(List<AbstractWidget> sink, Runnable rebuild,
+                                          int left, int y, int width,
+                                          String label, boolean value,
+                                          Consumer<Boolean> setter) {
         int btnW = 40, btnH = 18;
         int btnX = left + width - btnW - 4;
 
@@ -250,9 +250,9 @@ private static int buildToggle(List<AbstractWidget> sink, Runnable rebuild,
     }
 
     private static int buildModeSelector(List<AbstractWidget> sink, Runnable rebuild,
-                                          int left, int y, int width,
-                                          int current, String[] options,
-                                          Consumer<Integer> setter) {
+                                            int left, int y, int width,
+                                            int current, String[] options,
+                                            Consumer<Integer> setter) {
         for (int i = 0; i < options.length; i++) {
             final int idx = i;
             boolean selected = (current == idx);
@@ -267,9 +267,9 @@ private static int buildToggle(List<AbstractWidget> sink, Runnable rebuild,
     }
 
     private static int buildColorPicker(List<AbstractWidget> sink, Runnable rebuild,
-                                         int left, int y, int width,
-                                         int currentColor,
-                                         Consumer<Integer> setter) {
+                                           int left, int y, int width,
+                                           int currentColor,
+                                           Consumer<Integer> setter) {
         int swatchSize = 14;
         int gap = 3;
         int totalSwatches = QUICK_COLORS.length;
@@ -285,7 +285,7 @@ private static int buildToggle(List<AbstractWidget> sink, Runnable rebuild,
                     Component.empty(), b -> { setter.accept(color); rebuild.run(); },
                     CompactButton.Type.SETTINGS) {
                 @Override
-                protected void renderWidget(GuiGraphics g, int mx, int my, float pt) {
+                protected void renderWidget(DrawContext g, int mx, int my, float pt) {
                     int x = getX(), iy = getY(), w = getWidth(), h = getHeight();
                     g.fill(x + 1, iy + 1, x + w - 1, iy + h - 1, color | 0xFF000000);
                     int border = isSelected ? 0xFFFFFFFF : 0xFF555565;
@@ -380,13 +380,13 @@ private static int buildToggle(List<AbstractWidget> sink, Runnable rebuild,
                         // Copiar a la carpeta del mod para persistencia
                         String savedPath = copyImageToModFolder(path);
                         if (savedPath != null) {
-                            Minecraft.getInstance().execute(() -> callback.accept(savedPath));
+                            MinecraftClient.getInstance().execute(() -> callback.accept(savedPath));
                         }
                     }
                 }
             } catch (Exception e) {
                 // Fallback: usar JFileChooser si FileDialog falla
-                Minecraft.getInstance().execute(() -> {
+                MinecraftClient.getInstance().execute(() -> {
                     try {
                         javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
                         chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(

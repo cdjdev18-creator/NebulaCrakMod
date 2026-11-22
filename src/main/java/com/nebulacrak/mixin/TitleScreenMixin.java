@@ -1,7 +1,13 @@
 package com.nebulacrak.mixin;
 
 import com.nebulacrak.config.NebulaConfig;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.TitleScreen;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.client.renderer.texture.NativeImage;
+import net.minecraft.client.renderer.texture.TextureManager;
+import net.minecraft.util.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -10,150 +16,75 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
-@Mixin(targets = "net.minecraft.client.gui.screen.class_310", remap = false)
+@Mixin(TitleScreen.class)
 public class TitleScreenMixin {
 
-    private static Object customBackgroundTexture;
-    private static Object customBackgroundId;
+    private static final Map<String, DynamicTexture> textureCache = new HashMap<>();
+    private static final Map<String, Identifier> identifierCache = new HashMap<>();
 
     @Inject(method = "renderBackground", at = @At("HEAD"), cancellable = true)
-    private void onRenderBackground(Object guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void onRenderBackground(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (NebulaConfig.mainMenuBackgroundMode == NebulaConfig.BackgroundMode.ORIGINAL) {
             return;
         }
 
-        Minecraft client = Minecraft.getInstance();
-        int width = getScaledWidth(client);
-        int height = getScaledHeight(client);
+        MinecraftClient client = MinecraftClient.getInstance();
+        int width = client.getWindow().getScaledWidth();
+        int height = client.getWindow().getScaledHeight();
 
         switch (NebulaConfig.mainMenuBackgroundMode) {
             case COLOR -> {
-                invokeFill(guiGraphics, 0, 0, width, height, NebulaConfig.mainMenuBackgroundColor);
+                context.fill(0, 0, width, height, NebulaConfig.mainMenuBackgroundColor);
                 ci.cancel();
             }
             case IMAGE -> {
                 if (NebulaConfig.mainMenuImagePath != null && !NebulaConfig.mainMenuImagePath.isEmpty()) {
-                    renderCustomImage(guiGraphics, width, height, NebulaConfig.mainMenuImagePath, client);
+                    renderCustomImage(context, width, height, NebulaConfig.mainMenuImagePath, client, "main_menu_bg");
                     ci.cancel();
                 }
             }
         }
     }
 
-    private void renderCustomImage(Object guiGraphics, int width, int height, String imagePath, Minecraft client) {
+    private void renderCustomImage(DrawContext context, int width, int height, String imagePath, MinecraftClient client, String prefix) {
         try {
             File file = new File(imagePath);
             if (!file.exists()) return;
 
-            if (customBackgroundTexture == null || !getIdentifierPath(customBackgroundId).equals(imagePath)) {
-                if (customBackgroundTexture != null) {
-                    invokeClose(customBackgroundTexture);
-                }
+            String cacheKey = prefix + "_" + imagePath.hashCode();
+            
+            if (!textureCache.containsKey(cacheKey)) {
                 BufferedImage image = javax.imageio.ImageIO.read(file);
                 if (image == null) return;
 
-                Object nativeImage = createNativeImage(image.getWidth(), image.getHeight());
+                NativeImage nativeImage = new NativeImage(image.getWidth(), image.getHeight(), true);
                 for (int x = 0; x < image.getWidth(); x++) {
                     for (int y = 0; y < image.getHeight(); y++) {
-                        setNativeImagePixel(nativeImage, x, y, image.getRGB(x, y));
+                        nativeImage.setColorArgb(x, y, image.getRGB(x, y));
                     }
                 }
 
-                customBackgroundTexture = createDynamicTexture(nativeImage);
-                customBackgroundId = createIdentifier("nebulacrakmod", "main_menu_bg_" + imagePath.hashCode());
-                registerTexture(client.getTextureManager(), customBackgroundId, customBackgroundTexture);
+                DynamicTexture texture = new DynamicTexture(nativeImage);
+                Identifier id = Identifier.of("nebulacrakmod", cacheKey);
+                
+                TextureManager textureManager = client.getTextureManager();
+                textureManager.register(id, texture);
+                
+                textureCache.put(cacheKey, texture);
+                identifierCache.put(cacheKey, id);
             }
 
-            blit(guiGraphics, customBackgroundId, 0, 0, 0, 0, width, height, width, height);
+            Identifier id = identifierCache.get(cacheKey);
+            if (id != null) {
+                context.drawTexture(id, 0, 0, 0, 0, width, height, width, height);
+            }
         } catch (IOException e) {
-            invokeFill(guiGraphics, 0, 0, width, height, NebulaConfig.mainMenuBackgroundColor);
+            context.fill(0, 0, width, height, NebulaConfig.mainMenuBackgroundColor);
         } catch (Exception e) {
+            // Silently fail, fallback to original
         }
-    }
-
-    private static int getScaledWidth(Minecraft client) {
-        try {
-            return (int) client.getWindow().getClass().getMethod("getScaledWidth").invoke(client.getWindow());
-        } catch (Exception e) {
-            try {
-                return (int) client.getWindow().getClass().getMethod("getWidth").invoke(client.getWindow());
-            } catch (Exception ex) {
-                return 854;
-            }
-        }
-    }
-
-    private static int getScaledHeight(Minecraft client) {
-        try {
-            return (int) client.getWindow().getClass().getMethod("getScaledHeight").invoke(client.getWindow());
-        } catch (Exception e) {
-            try {
-                return (int) client.getWindow().getClass().getMethod("getHeight").invoke(client.getWindow());
-            } catch (Exception ex) {
-                return 480;
-            }
-        }
-    }
-
-    private static Object createNativeImage(int width, int height) throws Exception {
-        Class<?> nativeImageClass = Class.forName("com.mojang.blaze3d.platform.class_4708");
-        return nativeImageClass.getConstructor(int.class, int.class, boolean.class).newInstance(width, height, true);
-    }
-
-    private static void setNativeImagePixel(Object nativeImage, int x, int y, int argb) throws Exception {
-        int r = (argb >> 16) & 0xFF;
-        int g = (argb >> 8) & 0xFF;
-        int b = argb & 0xFF;
-        int a = (argb >> 24) & 0xFF;
-        Class<?> nativeImageClass = Class.forName("com.mojang.blaze3d.platform.class_4708");
-        Method setPixel = nativeImageClass.getMethod("method_22922", int.class, int.class, int.class, int.class, int.class, int.class);
-        setPixel.invoke(nativeImage, x, y, r, g, b, a);
-    }
-
-    private static Object createDynamicTexture(Object nativeImage) throws Exception {
-        Class<?> dynamicTextureClass = Class.forName("com.mojang.blaze3d.textures.class_4707");
-        return dynamicTextureClass.getConstructor(nativeImage.getClass()).newInstance(nativeImage);
-    }
-
-    private static Object createIdentifier(String namespace, String path) throws Exception {
-        Class<?> identifierClass = Class.forName("net.minecraft.class_2960");
-        return identifierClass.getMethod("method_13543", String.class, String.class).invoke(null, namespace, path);
-    }
-
-    private static String getIdentifierPath(Object identifier) throws Exception {
-        Class<?> identifierClass = Class.forName("net.minecraft.class_2960");
-        return (String) identifierClass.getMethod("method_13542").invoke(identifier);
-    }
-
-    private static void registerTexture(Object textureManager, Object identifier, Object texture) throws Exception {
-        Class<?> textureManagerClass = Class.forName("net.minecraft.client.renderer.texture.class_3867");
-        Method register = textureManagerClass.getMethod("register", Class.forName("net.minecraft.class_2960"), Class.forName("net.minecraft.client.renderer.texture.class_4706"));
-        register.invoke(textureManager, identifier, texture);
-    }
-
-    private static void invokeFill(Object guiGraphics, int x1, int y1, int x2, int y2, int color) {
-        try {
-            Class<?> guiGraphicsClass = Class.forName("net.minecraft.client.gui.class_4709");
-            Method fill = guiGraphicsClass.getMethod("method_22724", int.class, int.class, int.class, int.class, int.class);
-            fill.invoke(guiGraphics, x1, y1, x2, y2, color);
-        } catch (Exception ignored) {}
-    }
-
-    private static void blit(Object guiGraphics, Object texture, int x, int y, float u, float v, int width, int height, int textureWidth, int textureHeight) {
-        try {
-            Class<?> guiGraphicsClass = Class.forName("net.minecraft.client.gui.class_4709");
-            Method blit = guiGraphicsClass.getMethod("method_22723", Class.forName("net.minecraft.class_2960"), int.class, int.class, float.class, float.class, int.class, int.class, int.class, int.class);
-            blit.invoke(guiGraphics, texture, x, y, u, v, width, height, textureWidth, textureHeight);
-        } catch (Exception ignored) {}
-    }
-
-    private static void invokeClose(Object texture) {
-        try {
-            Class<?> dynamicTextureClass = Class.forName("com.mojang.blaze3d.textures.class_4707");
-            Method close = dynamicTextureClass.getMethod("close");
-            close.invoke(texture);
-        } catch (Exception ignored) {}
     }
 }

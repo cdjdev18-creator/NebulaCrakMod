@@ -10,9 +10,9 @@ import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Category;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -182,9 +182,9 @@ public class NebulaModules {
 
         @Override
         public void onActivate() {
-            if (Minecraft.getInstance().player != null) {
-                Minecraft.getInstance().player.displayClientMessage(
-                    net.minecraft.network.chat.Component.literal(
+            if (MinecraftClient.getInstance().player != null) {
+                MinecraftClient.getInstance().player.displayClientMessage(
+                    net.minecraft.text.Text.literal(
                         TranslationManager.get("nebula.player.detector.enabled", "[PlayerDetector] Enabled")
                     ), false);
             }
@@ -192,9 +192,9 @@ public class NebulaModules {
 
         @Override
         public void onDeactivate() {
-            if (Minecraft.getInstance().player != null) {
-                Minecraft.getInstance().player.displayClientMessage(
-                    net.minecraft.network.chat.Component.literal(
+            if (MinecraftClient.getInstance().player != null) {
+                MinecraftClient.getInstance().player.displayClientMessage(
+                    net.minecraft.text.Text.literal(
                         TranslationManager.get("nebula.player.detector.disabled", "[PlayerDetector] Disabled")
                     ), false);
             }
@@ -202,20 +202,20 @@ public class NebulaModules {
 
         public PlayerState getPlayerState() {
             if (!enabled.get()) return null;
-            LocalPlayer player = Minecraft.getInstance().player;
-            if (player == null || player.level() == null) return null;
+            LocalPlayer player = MinecraftClient.getInstance().player;
+            if (player == null || player.getWorld() == null) return null;
 
-            Vec3 pos = player.position();
-            Vec3 vel = player.getDeltaMovement();
-            boolean isMoving = vel.horizontalDistanceSqr() > 1.0E-6;
+            Vec3d pos = player.getPos();
+            Vec3d vel = player.getVelocity();
+            boolean isMoving = vel.horizontalLengthSquared() > 1.0E-6;
             return new PlayerState(
-                player.getUUID(),
+                player.getUuid(),
                 pos.x, pos.y, pos.z,
                 isMoving,
                 player.isSprinting(),
                 player.isJumping(),
-                player.onGround(),
-                player.isShiftKeyDown()
+                player.isOnGround(),
+                player.isSneaking()
             );
         }
 
@@ -288,9 +288,9 @@ public class NebulaModules {
 
         @Override
         public void onActivate() {
-            if (Minecraft.getInstance().player != null) {
-                Minecraft.getInstance().player.displayClientMessage(
-                    net.minecraft.network.chat.Component.literal(
+            if (MinecraftClient.getInstance().player != null) {
+                MinecraftClient.getInstance().player.displayClientMessage(
+                    net.minecraft.text.Text.literal(
                         TranslationManager.get("nebula.chat.detector.enabled", "[ChatDetector] Enabled")
                     ), false);
             }
@@ -298,9 +298,9 @@ public class NebulaModules {
 
         @Override
         public void onDeactivate() {
-            if (Minecraft.getInstance().player != null) {
-                Minecraft.getInstance().player.displayClientMessage(
-                    net.minecraft.network.chat.Component.literal(
+            if (MinecraftClient.getInstance().player != null) {
+                MinecraftClient.getInstance().player.displayClientMessage(
+                    net.minecraft.text.Text.literal(
                         TranslationManager.get("nebula.chat.detector.disabled", "[ChatDetector] Disabled")
                     ), false);
             }

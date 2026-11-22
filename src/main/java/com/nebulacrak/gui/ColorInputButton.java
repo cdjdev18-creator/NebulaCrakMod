@@ -1,14 +1,13 @@
 package com.nebulacrak.gui;
 
 import com.nebulacrak.gui.FontManager;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.font.TextRenderer;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.widget.AbstractWidget;
+import net.minecraft.client.input.keyboard.KeyEvent;
+import net.minecraft.client.input.mouse.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.function.Consumer;
@@ -34,9 +33,9 @@ public class ColorInputButton extends AbstractWidget {
     }
 
     @Override
-    public void onClick(MouseButtonEvent event, boolean isFocused) {
+    public void onClick(MouseButtonEvent event) {
         this.focused = isMouseOver(event.x(), event.y());
-        this.playDownSound(Minecraft.getInstance().getSoundManager());
+        this.playDownSound(MinecraftClient.getInstance().getSoundManager());
     }
 
     @Override
@@ -114,9 +113,8 @@ public class ColorInputButton extends AbstractWidget {
     }
 
     @Override
-    protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        Minecraft minecraft = Minecraft.getInstance();
-        Font font = FontManager.getCurrentFont();
+    protected void renderWidget(DrawContext context, int mouseX, int mouseY, float partialTick) {
+        TextRenderer font = FontManager.getCurrentFont();
         boolean hovered = isMouseOver(mouseX, mouseY);
 
         int x = getX();
@@ -129,11 +127,11 @@ public class ColorInputButton extends AbstractWidget {
         int borderColor = focused ? 0xFF8B5CF6 : (hovered ? 0xFF4A4A60 : 0xFF262634);
         int textColor = 0xFFFFFFFF;
 
-        guiGraphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, bgColor);
-        guiGraphics.fill(x, y, x + w, y + 1, borderColor);
-        guiGraphics.fill(x, y + h - 1, x + w, y + h, borderColor);
-        guiGraphics.fill(x, y + 1, x + 1, y + h - 1, borderColor);
-        guiGraphics.fill(x + w - 1, y + 1, x + w, y + h - 1, borderColor);
+        context.fill(x + 1, y + 1, x + w - 1, y + h - 1, bgColor);
+        context.fill(x, y, x + w, y + 1, borderColor);
+        context.fill(x, y + h - 1, x + w, y + h, borderColor);
+        context.fill(x, y + 1, x + 1, y + h - 1, borderColor);
+        context.fill(x + w - 1, y + 1, x + w, y + h - 1, borderColor);
 
         // Color preview swatch on the left
         int swatchSize = h - 4;
@@ -144,12 +142,12 @@ public class ColorInputButton extends AbstractWidget {
             while (hex.length() < 8) hex += "0";
             hex = hex.substring(0, 8);
             int color = (int) Long.parseLong(hex, 16);
-            guiGraphics.fill(swatchX, swatchY, swatchX + swatchSize, swatchY + swatchSize, color);
+            context.fill(swatchX, swatchY, swatchX + swatchSize, swatchY + swatchSize, color);
             // Border around swatch
-            guiGraphics.fill(swatchX - 1, swatchY - 1, swatchX + swatchSize + 1, swatchY, 0xFF555565);
-            guiGraphics.fill(swatchX - 1, swatchY + swatchSize, swatchX + swatchSize + 1, swatchY + swatchSize + 1, 0xFF555565);
-            guiGraphics.fill(swatchX - 1, swatchY, swatchX, swatchY + swatchSize, 0xFF555565);
-            guiGraphics.fill(swatchX + swatchSize, swatchY, swatchX + swatchSize + 1, swatchY + swatchSize, 0xFF555565);
+            context.fill(swatchX - 1, swatchY - 1, swatchX + swatchSize + 1, swatchY, 0xFF555565);
+            context.fill(swatchX - 1, swatchY + swatchSize, swatchX + swatchSize + 1, swatchY + swatchSize + 1, 0xFF555565);
+            context.fill(swatchX - 1, swatchY, swatchX, swatchY + swatchSize, 0xFF555565);
+            context.fill(swatchX + swatchSize, swatchY, swatchX + swatchSize + 1, swatchY + swatchSize, 0xFF555565);
         } catch (Exception ignored) {
         }
 
@@ -168,11 +166,11 @@ public class ColorInputButton extends AbstractWidget {
         if (focused && showCursor) {
             // Calculate cursor position
             String beforeCursor = displayText.substring(0, Math.min(cursorPosition, displayText.length()));
-            int cursorX = textX + font.width(beforeCursor);
-            guiGraphics.fill(cursorX, textY, cursorX + 1, textY + 8, 0xFFFFFFFF);
+            int cursorX = textX + font.getWidth(beforeCursor);
+            context.fill(cursorX, textY, cursorX + 1, textY + 8, 0xFFFFFFFF);
         }
 
-        guiGraphics.drawString(font, displayText, textX, textY, textColor, false);
+        context.drawText(font, displayText, textX, textY, textColor, false);
     }
 
     @Override

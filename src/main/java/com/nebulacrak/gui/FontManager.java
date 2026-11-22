@@ -1,8 +1,8 @@
 package com.nebulacrak.gui;
 
 import com.nebulacrak.config.NebulaConfig;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.font.TextRenderer;
 
 /**
  * Gestor de fuentes simplificado para NebulaCrakMod.
@@ -12,7 +12,7 @@ import net.minecraft.client.gui.Font;
  * rastrear la preferencia del usuario.
  */
 public class FontManager {
-    private static Font minecraftFont;
+    private static TextRenderer minecraftFont;
     private static boolean initialized = false;
 
     /**
@@ -22,7 +22,7 @@ public class FontManager {
     public static void init() {
         if (initialized) return;
         
-        minecraftFont = Minecraft.getInstance().font;
+        minecraftFont = MinecraftClient.getInstance().textRenderer;
         initialized = true;
     }
 
@@ -30,7 +30,7 @@ public class FontManager {
      * Obtiene la fuente actual según la configuración.
      * Por ahora siempre retorna la fuente de Minecraft.
      */
-    public static Font getCurrentFont() {
+    public static TextRenderer getCurrentFont() {
         if (!initialized) init();
         return minecraftFont;
     }
@@ -39,7 +39,7 @@ public class FontManager {
      * Obtiene una fuente específica por tipo.
      * Por ahora siempre retorna la fuente de Minecraft.
      */
-    public static Font getFont(NebulaConfig.FontType type) {
+    public static TextRenderer getFont(NebulaConfig.FontType type) {
         if (!initialized) init();
         return minecraftFont;
     }

@@ -2,9 +2,9 @@ package com.nebulacrak.gui;
 
 import com.nebulacrak.config.ConfiColorsConfig;
 import com.nebulacrak.translation.TranslationManager;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.mouse.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -53,7 +53,7 @@ public class ConfiColorsScreen {
         int innerLeft  = left + 4;
         int innerWidth = width - 8;
 
-        // ═══════════════════════════════════════════
+        // ══════════════════════════════════════════
         //  SECCIÓN: FONDO
         // ═══════════════════════════════════════════
         y = buildSection(sink, rebuild, left, y, width, innerLeft, innerWidth,
@@ -135,9 +135,9 @@ public class ConfiColorsScreen {
             y += 3;
         }
 
-        // ═══════════════════════════════════════════
+        // ══════════════════════════════════════════
         //  SECCIÓN: PANEL CARGAS
-        // ═══════════════════════════════════════════
+        // ══════════════════════════════════════════
         y = buildSection(sink, rebuild, left, y, width, innerLeft, innerWidth,
                          "panel_section",
                          () -> panelExpanded,
@@ -170,9 +170,9 @@ public class ConfiColorsScreen {
             y += 3;
         }
 
-        // ═══════════════════════════════════════════
+        // ══════════════════════════════════════════
         //  SECCIÓN: SPLASH
-        // ═══════════════════════════════════════════
+        // ══════════════════════════════════════════
         y = buildSection(sink, rebuild, left, y, width, innerLeft, innerWidth,
                          "splash_section",
                          () -> splashExpanded,
@@ -316,7 +316,7 @@ public class ConfiColorsScreen {
                     Component.empty(), b -> { setter.accept(color); rebuild.run(); },
                     CompactButton.Type.SETTINGS) {
                 @Override
-                protected void renderWidget(net.minecraft.client.gui.GuiGraphics g,
+                protected void renderWidget(DrawContext g,
                                             int mx, int my, float pt) {
                     int x = getX(), iy = getY(), w = getWidth(), h = getHeight();
                     // Fondo del swatch con el color real

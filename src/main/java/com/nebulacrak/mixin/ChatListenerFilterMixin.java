@@ -2,7 +2,7 @@ package com.nebulacrak.mixin;
 
 import com.nebulacrak.modules.MuteChatPlusModule;
 import meteordevelopment.meteorclient.systems.friends.Friends;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.multiplayer.chat.ChatListener;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.PlayerChatMessage;
@@ -28,10 +28,10 @@ public class ChatListenerFilterMixin {
 
         String senderName = sender.name();
         UUID senderUuid = sender.id();
-        var player = Minecraft.getInstance().player;
+        var player = MinecraftClient.getInstance().player;
 
         // Jugador local → siempre permitir
-        if (player != null && senderUuid != null && senderUuid.equals(player.getUUID())) {
+        if (player != null && senderUuid != null && senderUuid.equals(player.getUuid())) {
             return;
         }
 

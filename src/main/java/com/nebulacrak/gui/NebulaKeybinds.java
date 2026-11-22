@@ -2,15 +2,17 @@ package com.nebulacrak.gui;
 
 import com.nebulacrak.config.NebulaConfig;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
 public class NebulaKeybinds {
-    public static final KeyMapping OPEN_GUI = new KeyMapping(
+    public static final KeyBinding OPEN_GUI = new KeyBinding(
         "key.nebulacrakmod.gui",
+        net.minecraft.client.option.KeyBinding.Type.KEYSYM,
         NebulaConfig.openKeyCode,
-        KeyMapping.Category.MISC
+        KeyBinding.Category.MISC
     );
 
     public static void register() {
@@ -18,11 +20,9 @@ public class NebulaKeybinds {
     }
 
     public static void updateKeyBinding() {
-        // Re-create the key mapping with the new key code
-        // Note: This is a workaround since KeyMapping.setKey() requires a Key object
-        // which is not available in official Mojang mappings
         try {
-            java.lang.reflect.Field keyField = KeyMapping.class.getDeclaredField("key");
+            // Update the key code using reflection on the internal field
+            java.lang.reflect.Field keyField = KeyBinding.class.getDeclaredField("key");
             keyField.setAccessible(true);
             keyField.set(OPEN_GUI, NebulaConfig.openKeyCode);
         } catch (Exception e) {
@@ -31,11 +31,11 @@ public class NebulaKeybinds {
     }
 
     public static void handleKeyPress() {
-        while (OPEN_GUI.consumeClick()) {
-            Minecraft minecraft = Minecraft.getInstance();
-            if (minecraft.screen == null) {
+        while (OPEN_GUI.wasPressed()) {
+            MinecraftClient minecraft = MinecraftClient.getInstance();
+            if (minecraft.currentScreen == null) {
                 minecraft.setScreen(new NebulaGUIScreen(null));
-            } else if (minecraft.screen instanceof NebulaGUIScreen) {
+            } else if (minecraft.currentScreen instanceof NebulaGUIScreen) {
                 if (NebulaConfig.closeWithOpenKey) {
                     minecraft.setScreen(null);
                 }

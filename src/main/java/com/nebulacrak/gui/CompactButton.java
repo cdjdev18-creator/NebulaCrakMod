@@ -2,13 +2,13 @@ package com.nebulacrak.gui;
 
 import com.nebulacrak.config.NebulaConfig;
 import com.nebulacrak.gui.FontManager;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.font.TextRenderer;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.widget.AbstractWidget;
+import net.minecraft.client.gui.widget.Button;
+import net.minecraft.client.input.mouse.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 public class CompactButton extends AbstractWidget {
@@ -62,12 +62,12 @@ public class CompactButton extends AbstractWidget {
     }
 
     @Override
-    public void onClick(MouseButtonEvent event, boolean isFocused) {
-        this.playDownSound(Minecraft.getInstance().getSoundManager());
+    public void onClick(MouseButtonEvent event) {
+        this.playDownSound(MinecraftClient.getInstance().getSoundManager());
         if (event.button() == 1 && this.onRightClick != null) {
-            this.onRightClick.onPress(null);
+            this.onRightClick.onPress(this);
         } else if (this.onPress != null) {
-            this.onPress.onPress(null);
+            this.onPress.onPress(this);
         }
     }
 
@@ -77,9 +77,8 @@ public class CompactButton extends AbstractWidget {
     }
 
     @Override
-    protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        Minecraft minecraft = Minecraft.getInstance();
-        Font font = FontManager.getCurrentFont();
+    protected void renderWidget(DrawContext context, int mouseX, int mouseY, float partialTick) {
+        TextRenderer font = FontManager.getCurrentFont();
         boolean hovered = this.isHoveredOrFocused();
 
         int x = this.getX();
@@ -186,17 +185,17 @@ public class CompactButton extends AbstractWidget {
         }
 
         // Fondo del botón
-        guiGraphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, bgColor);
+        context.fill(x + 1, y + 1, x + w - 1, y + h - 1, bgColor);
 
         // Bordes (1px)
-        guiGraphics.fill(x, y, x + w, y + 1, borderColor);                 // Arriba
-        guiGraphics.fill(x, y + h - 1, x + w, y + h, borderColor);         // Abajo
-        guiGraphics.fill(x, y + 1, x + 1, y + h - 1, borderColor);         // Izquierda
-        guiGraphics.fill(x + w - 1, y + 1, x + w, y + h - 1, borderColor); // Derecha
+        context.fill(x, y, x + w, y + 1, borderColor);                 // Arriba
+        context.fill(x, y + h - 1, x + w, y + h, borderColor);         // Abajo
+        context.fill(x, y + 1, x + 1, y + h - 1, borderColor);         // Izquierda
+        context.fill(x + w - 1, y + 1, x + w, y + h - 1, borderColor); // Derecha
 
         // Línea de acento inferior en pestañas seleccionadas
         if (type == Type.TAB && selected) {
-            guiGraphics.fill(x, y + h - 2, x + w, y + h, getTabAccentColor(style));
+            context.fill(x, y + h - 2, x + w, y + h, getTabAccentColor(style));
         }
 
         // Centrado vertical perfecto
@@ -205,11 +204,11 @@ public class CompactButton extends AbstractWidget {
         // Renderizado del texto centrado horizontal y verticalmente
         String text = this.getMessage().getString();
         int maxTextWidth = w - 4;
-        if (font.width(text) > maxTextWidth) {
-            text = font.plainSubstrByWidth(text, maxTextWidth - font.width("...")) + "...";
+        if (font.getWidth(text) > maxTextWidth) {
+            text = font.trimToWidth(text, maxTextWidth - font.getWidth("...")) + "...";
         }
 
-        guiGraphics.drawCenteredString(font, text, x + w / 2, textY, textColor);
+        context.drawCenteredText(font, text, x + w / 2, textY, textColor);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
