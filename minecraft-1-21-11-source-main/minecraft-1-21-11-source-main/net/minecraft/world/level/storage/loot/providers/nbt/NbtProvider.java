@@ -1,0 +1,14 @@
+package net.minecraft.world.level.storage.loot.providers.nbt;
+
+import java.util.Set;
+import net.minecraft.nbt.Tag;
+import net.minecraft.world.level.storage.loot.LootContext;
+import org.jspecify.annotations.Nullable;
+
+public interface NbtProvider {
+   @Nullable Tag get(LootContext context);
+
+   Set getReferencedContextParams();
+
+   LootNbtProviderType getType();
+}
