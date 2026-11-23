@@ -30,15 +30,18 @@ public class ColorInputButton extends AbstractWidget {
         this.cursorPosition = text.length();
     }
 
-    public void onClick(double mouseX, double mouseY) {
-        this.focused = isMouseOver(mouseX, mouseY);
+    @Override
+    public void onClick(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+        this.focused = isMouseOver(event.x(), event.y());
         this.playDownSound(Minecraft.getInstance().getSoundManager());
     }
 
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    @Override
+    public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
         if (!focused) return false;
 
-        boolean ctrl = (modifiers & 1) != 0; // GLFW_MOD_CONTROL
+        int keyCode = event.key();
+        boolean ctrl = event.hasControlDown();
 
         // Handle special keys
         if (keyCode == 259) { // BACKSPACE
@@ -64,19 +67,23 @@ public class ColorInputButton extends AbstractWidget {
             cursorPosition = text.length();
             return true;
         } else if (keyCode == 86 && ctrl) { // CTRL+V - Paste
-            // Handle paste from clipboard
             return true;
         }
 
-        // Handle character input (0-9, A-F, a-f)
-        char c = getCharFromKey(keyCode);
-        if (c != 0 && isValidHexChar(c) && text.length() < maxLength) {
+        return false;
+    }
+
+    @Override
+    public boolean charTyped(net.minecraft.client.input.CharacterEvent event) {
+        if (!focused) return false;
+        int codepoint = event.codepoint();
+        char c = (char) codepoint;
+        if (isValidHexChar(c) && text.length() < maxLength) {
             text = text.substring(0, cursorPosition) + Character.toUpperCase(c) + text.substring(cursorPosition);
             cursorPosition++;
             updateColor();
             return true;
         }
-
         return false;
     }
 

@@ -61,9 +61,12 @@ public class CompactButton extends AbstractWidget {
         return selected;
     }
 
-    public void onClick(double mouseX, double mouseY) {
+    @Override
+    public void onClick(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
         this.playDownSound(Minecraft.getInstance().getSoundManager());
-        if (this.onPress != null) {
+        if (event.button() == 1 && this.onRightClick != null) {
+            this.onRightClick.accept(this);
+        } else if (this.onPress != null) {
             this.onPress.accept(this);
         }
     }

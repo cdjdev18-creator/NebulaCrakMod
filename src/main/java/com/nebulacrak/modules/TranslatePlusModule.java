@@ -8,13 +8,11 @@ import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.EnumSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Category;
 import net.minecraft.client.Minecraft;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 
 public class TranslatePlusModule extends Module {
-    public static final Category CATEGORY = NebulaModules.NEBULA_MISC;
     public static TranslatePlusModule INSTANCE;
 
     public final Setting<LanguageManager.Language> language;
@@ -24,7 +22,7 @@ public class TranslatePlusModule extends Module {
     private boolean syncing;
 
     public TranslatePlusModule() {
-        super(CATEGORY, "Translate+", "Translation settings for NebulaCrakMod.");
+        super(NebulaModules.NEBULA, "Translate+", "Translation settings for NebulaCrakMod.");
         INSTANCE = this;
         SettingGroup sg = settings.getDefaultGroup();
         language = sg.add(new EnumSetting.Builder<LanguageManager.Language>()

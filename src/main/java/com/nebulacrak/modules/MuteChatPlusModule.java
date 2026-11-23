@@ -5,19 +5,16 @@ import com.nebulacrak.translation.TranslationManager;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Category;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.minecraft.client.Minecraft;
 
 public class MuteChatPlusModule extends Module {
-    public static final Category CATEGORY = NebulaModules.NEBULA_CHAT;
-
     public static MuteChatPlusModule INSTANCE;
     public Setting<Boolean> muteChat;
 
     public MuteChatPlusModule() {
-        super(CATEGORY, "MuteChat+", "Hide chat messages from non-friends.");
+        super(NebulaModules.NEBULA, "MuteChat+", "Hide chat messages from non-friends.");
         INSTANCE = this;
         SettingGroup sg = settings.getDefaultGroup();
         muteChat = sg.add(new BoolSetting.Builder()

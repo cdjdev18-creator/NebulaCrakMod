@@ -239,7 +239,7 @@ public class NebulaGUIScreen extends Screen {
     private void renderNebulaModules(int left, int y, int width) {
         // ── Encabezado raíz ──────────────────────────────────────────────────
         String arrow = nebulaRootExpanded ? "▼ " : "▶ ";
-        String rootTitle = arrow + TranslationManager.get("nebula.section.root", "NebulaCrakMod");
+        String rootTitle = arrow + "NebulaCrakMod+";
         CompactButton rootBtn = new CompactButton(left, y, width, 20,
                 Component.literal(rootTitle),
                 b -> { nebulaRootExpanded = !nebulaRootExpanded; rebuild(); },
@@ -249,32 +249,10 @@ public class NebulaGUIScreen extends Screen {
 
         if (!nebulaRootExpanded) return;
 
-        int catLeft  = left + 4;
-        int catWidth = width - 8;
-
-        for (NebulaModules.CDJCategory category : NebulaModules.CDJ_CATEGORIES) {
-            String catKey      = "nebula.cat." + category.getId();
-            boolean isExpanded = categoryExpandedStates.getOrDefault(catKey, true);
-
-            String catArrow = isExpanded ? "▼ " : "▶ ";
-            String catTitle = catArrow + category.getDisplayName();
-
-            CompactButton catBtn = new CompactButton(catLeft, y, catWidth, 17,
-                    Component.literal(catTitle),
-                    b -> { categoryExpandedStates.put(catKey, !isExpanded); rebuild(); },
-                    CompactButton.Type.CATEGORY);
-            addContent(catBtn);
-            y += 19;
-
-            if (isExpanded) {
-                int modLeft  = catLeft + 8;
-                int modWidth = catWidth - 16;
-
-                for (Module module : category.getModules()) {
-                    y = addModuleRow(modLeft, y, modWidth, module);
-                }
-                y += 3;
-            }
+        int modLeft  = left + 8;
+        int modWidth = width - 16;
+        for (Module module : NebulaModules.ALL_MODULES) {
+            y = addModuleRow(modLeft, y, modWidth, module);
         }
     }
 
@@ -965,15 +943,17 @@ public class NebulaGUIScreen extends Screen {
     // ═══════════════════════════════════════════════════════════════════════
 
     private void renderCustomBackground(GuiGraphics g) {
-        if (NebulaConfig.backgroundMode == NebulaConfig.BackgroundMode.ORIGINAL) {
-            renderPanorama(g, 0.0F);
-            return;
-        }
-
         int w = this.width;
         int h = this.height;
 
-        switch (NebulaConfig.backgroundMode) {
+        NebulaConfig.BackgroundMode mode = NebulaConfig.backgroundMode;
+        if (mode == NebulaConfig.BackgroundMode.ORIGINAL) {
+            // Fondo simple transparente/oscuro
+            g.fill(0, 0, w, h, 0x80000000);
+            return;
+        }
+
+        switch (mode) {
             case COLOR -> g.fill(0, 0, w, h, NebulaConfig.backgroundColor);
             case IMAGE -> {
                 if (NebulaConfig.backgroundImagePath != null && !NebulaConfig.backgroundImagePath.isEmpty()) {
@@ -986,6 +966,8 @@ public class NebulaGUIScreen extends Screen {
                 }
                 g.fill(0, 0, w, h, NebulaConfig.backgroundColor);
             }
+            case TRANSPARENT -> g.fill(0, 0, w, h, 0x00000000);
+            default -> g.fill(0, 0, w, h, 0x80000000);
         }
     }
 

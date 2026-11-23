@@ -1,6 +1,5 @@
 package com.nebulacrak.gui;
 
-import com.nebulacrak.language.LanguageManager;
 import com.nebulacrak.modules.MuteChatPlusModule;
 import com.nebulacrak.modules.TranslatePlusModule;
 import com.nebulacrak.translation.TranslationManager;
@@ -16,112 +15,27 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class NebulaModules {
-    public static final Category NEBULA_PLAYER = new Category("nebula.player");
-    public static final Category NEBULA_CHAT = new Category("nebula.chat");
-    public static final Category NEBULA_MISC = new Category("nebula.misc");
+    // Single Meteor dropdown category
+    public static final Category NEBULA = new Category("NebulaCrakMod+");
 
-    public static class CDJCategory {
-        private final String id;
-        private final String translationKey;
-        private final String defaultName;
-        private final Category meteorCategory;
-        private final List<Module> modules = new ArrayList<>();
-
-        public CDJCategory(String id, String translationKey, String defaultName, Category meteorCategory) {
-            this.id = id;
-            this.translationKey = translationKey;
-            this.defaultName = defaultName;
-            this.meteorCategory = meteorCategory;
-        }
-
-        public String getId() {
-            return id;
-        }
-
-        public String getTranslationKey() {
-            return translationKey;
-        }
-
-        public String getDefaultName() {
-            return defaultName;
-        }
-
-        public String getDisplayName() {
-            return TranslationManager.get(translationKey, defaultName);
-        }
-
-        public Category getMeteorCategory() {
-            return meteorCategory;
-        }
-
-        public List<Module> getModules() {
-            return modules;
-        }
-
-        public CDJCategory add(Module module) {
-            this.modules.add(module);
-            return this;
-        }
-    }
-
-    public static final List<CDJCategory> CDJ_CATEGORIES = new ArrayList<>();
-
-    public static final CDJCategory CATEGORY_PLAYER = new CDJCategory("player", "nebula.category.player", "Player", NEBULA_PLAYER);
-    public static final CDJCategory CATEGORY_CHAT = new CDJCategory("chat", "nebula.category.chat", "Chat", NEBULA_CHAT);
-    public static final CDJCategory CATEGORY_MISC = new CDJCategory("misc", "nebula.category.misc", "Misc", NEBULA_MISC);
+    public static final List<Module> ALL_MODULES = new ArrayList<>();
 
     static {
-        CDJ_CATEGORIES.add(CATEGORY_PLAYER);
-        CDJ_CATEGORIES.add(CATEGORY_CHAT);
-        CDJ_CATEGORIES.add(CATEGORY_MISC);
-
-        CATEGORY_PLAYER.add(new PlayerDetectorModule());
-        CATEGORY_CHAT.add(new ChatDetectorModule());
-        CATEGORY_CHAT.add(new MuteChatPlusModule());
-        CATEGORY_MISC.add(new TranslatePlusModule());
+        ALL_MODULES.add(new PlayerDetectorModule());
+        ALL_MODULES.add(new ChatDetectorModule());
+        ALL_MODULES.add(new MuteChatPlusModule());
+        ALL_MODULES.add(new TranslatePlusModule());
     }
 
-    public static final List<Module> PLAYER_MODULES = CATEGORY_PLAYER.getModules();
-    public static final List<Module> CHAT_MODULES = CATEGORY_CHAT.getModules();
-    public static final List<Module> MISC_MODULES = CATEGORY_MISC.getModules();
-
-    /**
-     * Registra las categorías técnicas en Meteor para que los módulos propios
-     * sean reconocidos internamente, pero la interfaz de NebulaCrakMod
-     * los filtrará con el prefijo "nebula." para no mostrarlos como columnas
-     * separadas en la sección ModulosMeteor.
-     */
     public static void registerCategories() {
-        for (CDJCategory cat : CDJ_CATEGORIES) {
-            if (cat.getMeteorCategory() != null) {
-                Modules.registerCategory(cat.getMeteorCategory());
-            }
-        }
+        Modules.registerCategory(NEBULA);
     }
 
     public static void registerModules() {
-        for (CDJCategory cat : CDJ_CATEGORIES) {
-            for (Module module : cat.getModules()) {
-                Modules.get().add(module);
-            }
-        }
-    }
-
-    /**
-     * API pública: agrega una nueva categoría CDJ+ con sus módulos.
-     * Registra la categoría técnicamente en Meteor y la añade a la lista
-     * que muestra NebulaGUIScreen dentro del desplegable NebulaCrakMod.
-     */
-    public static void registerCDJCategory(CDJCategory category) {
-        CDJ_CATEGORIES.add(category);
-        if (category.getMeteorCategory() != null) {
-            Modules.registerCategory(category.getMeteorCategory());
-        }
-        for (Module module : category.getModules()) {
+        for (Module module : ALL_MODULES) {
             Modules.get().add(module);
         }
     }
@@ -136,7 +50,7 @@ public class NebulaModules {
         private final Setting<Boolean> showOnGround;
 
         public PlayerDetectorModule() {
-            super(NEBULA_PLAYER, "player-detector", "Detects and displays player state information");
+            super(NEBULA, "player-detector", "Detects and displays player state information");
             SettingGroup sg = settings.getDefaultGroup();
             enabled = sg.add(new BoolSetting.Builder()
                 .name("enabled")
@@ -260,7 +174,7 @@ public class NebulaModules {
         private final Setting<Boolean> detectSystem;
 
         public ChatDetectorModule() {
-            super(NEBULA_CHAT, "chat-detector", "Detects chat messages and events");
+            super(NEBULA, "chat-detector", "Detects chat messages and events");
             SettingGroup sg = settings.getDefaultGroup();
             enabled = sg.add(new BoolSetting.Builder()
                 .name("enabled")
