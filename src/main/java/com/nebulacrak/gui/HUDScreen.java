@@ -198,9 +198,9 @@ public class HUDScreen {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════════
     //  HELPERS DE CONSTRUCCIÓN
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════════
 
     private static int buildSectionHeader(List<AbstractWidget> sink, Runnable rebuild,
                                            int left, int y, int width,
@@ -228,9 +228,9 @@ public class HUDScreen {
     }
 
     private static int buildToggle(List<AbstractWidget> sink, Runnable rebuild,
-                                          int left, int y, int width,
-                                          String label, boolean value,
-                                          Consumer<Boolean> setter) {
+                                           int left, int y, int width,
+                                           String label, boolean value,
+                                           Consumer<Boolean> setter) {
         int btnW = 40, btnH = 18;
         int btnX = left + width - btnW - 4;
 
@@ -250,9 +250,9 @@ public class HUDScreen {
     }
 
     private static int buildModeSelector(List<AbstractWidget> sink, Runnable rebuild,
-                                            int left, int y, int width,
-                                            int current, String[] options,
-                                            Consumer<Integer> setter) {
+                                             int left, int y, int width,
+                                             int current, String[] options,
+                                             Consumer<Integer> setter) {
         for (int i = 0; i < options.length; i++) {
             final int idx = i;
             boolean selected = (current == idx);

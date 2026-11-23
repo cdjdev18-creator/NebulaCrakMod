@@ -10,7 +10,7 @@ import org.lwjgl.glfw.GLFW;
 public class NebulaKeybinds {
     public static final KeyBinding OPEN_GUI = new KeyBinding(
         "key.nebulacrakmod.gui",
-        net.minecraft.client.option.KeyBinding.Type.KEYSYM,
+        KeyBinding.Type.KEYSYM,
         NebulaConfig.openKeyCode,
         KeyBinding.Category.MISC
     );

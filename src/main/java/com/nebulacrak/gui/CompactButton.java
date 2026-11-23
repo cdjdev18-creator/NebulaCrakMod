@@ -11,6 +11,8 @@ import net.minecraft.client.gui.widget.Button;
 import net.minecraft.client.input.mouse.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
+import java.util.function.Consumer;
+
 public class CompactButton extends AbstractWidget {
     public enum Type {
         TAB,
@@ -27,12 +29,12 @@ public class CompactButton extends AbstractWidget {
     }
 
     private final Type type;
-    private final Button.OnPress onPress;
-    private Button.OnPress onRightClick;
+    private final Consumer<CompactButton> onPress;
+    private Consumer<CompactButton> onRightClick;
     private boolean activated;
     private boolean selected;
 
-    public CompactButton(int x, int y, int width, int height, Component message, Button.OnPress onPress, Type type) {
+    public CompactButton(int x, int y, int width, int height, Component message, Consumer<CompactButton> onPress, Type type) {
         super(x, y, width, height, message);
         this.onPress = onPress;
         this.type = type;
@@ -48,7 +50,7 @@ public class CompactButton extends AbstractWidget {
         return this;
     }
 
-    public CompactButton setOnRightClick(Button.OnPress onRightClick) {
+    public CompactButton setOnRightClick(Consumer<CompactButton> onRightClick) {
         this.onRightClick = onRightClick;
         return this;
     }
@@ -65,9 +67,9 @@ public class CompactButton extends AbstractWidget {
     public void onClick(MouseButtonEvent event) {
         this.playDownSound(MinecraftClient.getInstance().getSoundManager());
         if (event.button() == 1 && this.onRightClick != null) {
-            this.onRightClick.onPress(this);
+            this.onRightClick.accept(this);
         } else if (this.onPress != null) {
-            this.onPress.onPress(this);
+            this.onPress.accept(this);
         }
     }
 
@@ -211,9 +213,9 @@ public class CompactButton extends AbstractWidget {
         context.drawCenteredText(font, text, x + w / 2, textY, textColor);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════════
     //  COLOR SCHEMES PER BUTTON STYLE
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════════
 
     // Disabled
     private int getDisabledBg(NebulaConfig.ButtonStyle style) {

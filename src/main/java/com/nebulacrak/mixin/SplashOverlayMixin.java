@@ -38,10 +38,12 @@ public class SplashOverlayMixin {
         switch (NebulaConfig.mojangScreenBackgroundMode) {
             case COLOR -> {
                 context.fill(0, 0, width, height, NebulaConfig.mojangScreenBackgroundColor);
+                ci.cancel();
             }
             case IMAGE -> {
                 if (NebulaConfig.mojangScreenImagePath != null && !NebulaConfig.mojangScreenImagePath.isEmpty()) {
                     renderCustomImage(context, width, height, NebulaConfig.mojangScreenImagePath, client, "mojang_bg");
+                    ci.cancel();
                 }
             }
         }

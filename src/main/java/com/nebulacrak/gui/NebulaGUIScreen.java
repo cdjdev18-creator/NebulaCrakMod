@@ -3,7 +3,6 @@ package com.nebulacrak.gui;
 import com.nebulacrak.config.ConfiColorsConfig;
 import com.nebulacrak.config.NebulaConfig;
 import com.nebulacrak.gui.NebulaTextureManager;
-import net.minecraft.util.Identifier;
 import com.nebulacrak.language.LanguageManager;
 import com.nebulacrak.translation.TranslationManager;
 import meteordevelopment.meteorclient.MeteorClient;
@@ -12,17 +11,18 @@ import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.font.TextRenderer;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.AbstractWidget;
 import net.minecraft.client.input.keyboard.KeyEvent;
 import net.minecraft.client.input.mouse.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -35,10 +35,12 @@ import java.util.*;
  * Pestañas:
  *   [NebulaCrakMod]  — módulos propios, agrupados bajo un único desplegable
  *   [Módulos Meteor] — módulos originales de Meteor por sus categorías reales
- *   [ConfiColors]    — personalización visual (Fondo, PanelCargas, Splash)
+ *   [HUD]            — personalización visual HUD (Fondo, PanelCargas, Splash)
+ *   [EDIT,MC]        — editor de menús y pantallas de Minecraft
+ *   [CONFI]          — configuración avanzada (Keybind, Font, Button Style)
  *
  * Firma tricolor en barra superior (UNA sola vez):
- *   "NebulaCrakMod" rojo · "by" blanco · "CDJ dev" verde
+ *   "NebulaCrakMod" rojo · "by" blanco · "CDJ dev 18" verde
  */
 public class NebulaGUIScreen extends Screen {
 
@@ -88,7 +90,7 @@ public class NebulaGUIScreen extends Screen {
 
     // ═══════════════════════════════════════════════════════════════════════════
     //  INIT
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════
     @Override
     protected void init() {
         clearWidgets();
@@ -99,11 +101,10 @@ public class NebulaGUIScreen extends Screen {
         String sigName   = "NebulaCrakMod";
         String sigBy     = " by ";
         String sigAuthor = "CDJ dev";
-        TextRenderer font = MinecraftClient.getInstance().textRenderer;
-        int nW = font.getWidth(sigName);
-        int bW = font.getWidth(sigBy);
-        int aW = font.getWidth(sigAuthor);
-        // Con escalado 2.25x, el ancho del autor se multiplica
+        // Note: In intermediary mappings, font access is via textRenderer
+        int nW = 96; // approximate "NebulaCrakMod" width
+        int bW = 24; // approximate " by " width
+        int aW = 48; // approximate "CDJ dev" width
         float scale = 2.25f;
         sigEndX = 8 + nW + bW + (int)(aW * scale) + 4;
 
@@ -156,9 +157,9 @@ public class NebulaGUIScreen extends Screen {
         addRenderableWidget(btn);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════
     //  REBUILD
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════
     private void rebuild() {
         // Limpiar contenido anterior
         for (AbstractWidget b : contentButtons) removeWidget(b);
@@ -225,7 +226,7 @@ public class NebulaGUIScreen extends Screen {
     // ══════════════════════════════════════════════════════════════════════════
     //  TAB: NebulaCrakMod (módulos propios)
     //  Un único desplegable raíz "NebulaCrakMod" con subcategorías
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════
     private void renderNebulaModules(int left, int y, int width) {
         // ── Encabezado raíz ──────────────────────────────────────────────────
         String arrow = nebulaRootExpanded ? "▼ " : "▶ ";
@@ -268,9 +269,9 @@ public class NebulaGUIScreen extends Screen {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════════════
     //  TAB: Módulos Meteor (originales, excluye categorías nebula.*)
-    // ═════════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════════════
     private void renderMeteorModules(int left, int y, int width) {
         if (MeteorClient.mc == null || Modules.get() == null) {
             addContent(new CompactButton(left, y, width, 18,
@@ -319,18 +320,18 @@ public class NebulaGUIScreen extends Screen {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     //  TAB: HUD
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     private void renderHUD(int left, int y, int width) {
         List<AbstractWidget> bucket = new ArrayList<>();
         HUDScreen.build(this, left, y, width, bucket, this::rebuild);
         for (AbstractWidget btn : bucket) addContent(btn);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     //  TAB: EDIT_MC (Editor de Menús y Pantallas de Minecraft)
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     private void renderEditMC(int left, int y, int width) {
         // ── A. Menú Principal ──────────────────────────────────────────────────
         y = renderEditMCSection(left, y, width,
@@ -552,12 +553,12 @@ public class NebulaGUIScreen extends Screen {
         return y;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     //  TAB: CONFI
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     private void renderConfi(int left, int y, int width) {
         // ── Tecla de apertura ──────────────────────────────────────────────────
-        String keyName = GLFW.glfwGetKeyName(NebulaConfig.openKeyCode, 0);
+        String keyName = org.lwjgl.glfw.GLFW.glfwGetKeyName(NebulaConfig.openKeyCode, 0);
         if (keyName == null) keyName = "Unknown (" + NebulaConfig.openKeyCode + ")";
         keyName = keyName.toUpperCase();
 
@@ -685,21 +686,16 @@ public class NebulaGUIScreen extends Screen {
         }
     }
 
-    private void addTooltip(AbstractWidget widget, String title, String desc) {
-        // We track tooltip by checking hover state in render()
-        // The tooltip data is stored in the screen and shown when hovering over this widget
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     //  TAB: ConfiColors (Legacy - Redirige a HUD)
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     private void renderConfiColors(int left, int y, int width) {
         renderHUD(left, y, width);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     //  Fila de módulo (toggle ON/OFF)
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     private int addModuleRow(int left, int y, int width, Module module) {
         boolean active = module.isActive();
         String onLabel  = TranslationManager.get("confi.state.on",  "ON");
@@ -717,9 +713,9 @@ public class NebulaGUIScreen extends Screen {
         return y + 18;
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     //  SCROLL
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     private void calculateMaxScroll() {
         int totalH = 0;
         for (AbstractWidget b : contentButtons) {
@@ -741,9 +737,9 @@ public class NebulaGUIScreen extends Screen {
         return super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     //  MOUSE MOVED — para tooltips
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     @Override
     public void mouseMoved(double mouseX, double mouseY) {
         // Find which content button is hovered
@@ -820,9 +816,9 @@ public class NebulaGUIScreen extends Screen {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     //  MOUSE CLICK — manejo del dropdown de idioma
-    // ══════════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean isFocused) {
         if (languageDropdownOpen) {
@@ -855,9 +851,9 @@ public class NebulaGUIScreen extends Screen {
         init();
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════
     //  KEY PRESS
-    // ═════════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════
     @Override
     public boolean keyPressed(KeyEvent event) {
         int key = event.key();
@@ -865,7 +861,7 @@ public class NebulaGUIScreen extends Screen {
         // Handle keybind change mode
         if (waitingForKeybind) {
             // Ignore ESC - it cancels the keybind change
-            if (key == GLFW.GLFW_KEY_ESCAPE) {
+            if (key == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
                 waitingForKeybind = false;
                 rebuild();
                 return true;
@@ -879,7 +875,7 @@ public class NebulaGUIScreen extends Screen {
             return true;
         }
 
-        if (key == GLFW.GLFW_KEY_ESCAPE) {
+        if (key == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
             onClose();
             return true;
         }
@@ -891,9 +887,9 @@ public class NebulaGUIScreen extends Screen {
         return super.keyPressed(event);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════
     //  RENDER
-    // ═════════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════
     @Override
     public void render(DrawContext g, int mouseX, int mouseY, float pt) {
         // ── ConfiColors: Fondo personalizado ─────────────────────────────────────
@@ -912,195 +908,135 @@ public class NebulaGUIScreen extends Screen {
         g.fill(0, CONTENT_START_Y - 1, this.width, CONTENT_START_Y, 0xFF2A2A38);
 
         // ── FIRMA TRICOLOR (una sola vez, en la barra superior izquierda) ────
-        // NebulaCrakMod (rojo #EF4444) + " by " (blanco) + CDJ dev (verde #22C55E)
-        String sigName   = "NebulaCrakMod";
-        String sigBy     = " by ";
-        String sigAuthor = "CDJ dev";
 
-        TextRenderer font = MinecraftClient.getInstance().textRenderer;
-        int nameW   = font.getWidth(sigName);
-        int byW     = font.getWidth(sigBy);
-        int authorW = font.getWidth(sigAuthor);
+        // Note: We use reflection to access the drawString method for custom colors
+        // since intermediary mappings don't expose the same method names
+        try {
+            Method drawString = g.getClass().getMethod("drawString", net.minecraft.client.gui.font.TextRenderer.class, String.class, int.class, int.class, int.class);
+            
+            // "NebulaCrakMod" - ROJO
+            String sigName = "NebulaCrakMod";
+            drawString.invoke(g, MinecraftClient.getInstance().textRenderer, sigName, 8, 8, 0xFFEF4444);
+            
+            // " by " - BLANCO
+            String sigBy = " by ";
+            int byX = 8 + MinecraftClient.getInstance().textRenderer.getWidth(sigName);
+            drawString.invoke(g, MinecraftClient.getInstance().textRenderer, sigBy, byX, 8, 0xFFFFFFFF);
+            
+            // "CDJ dev 18" - VERDE
+            String sigAuthor = "CDJ dev 18";
+            int authorX = byX + MinecraftClient.getInstance().textRenderer.getWidth(sigBy);
+            drawString.invoke(g, MinecraftClient.getInstance().textRenderer, sigAuthor, authorX, 8, 0xFF22C55E);
+            
+        } catch (Exception e) {
+            // Fallback: draw all white
+            g.drawText(MinecraftClient.getInstance().textRenderer, "NebulaCrakMod by CDJ dev 18", 8, 8, 0xFFFFFFFF, false);
+        }
 
-        int sigNameX   = 8;
-        int sigByX     = sigNameX + nameW;
-        int sigAuthorX = sigByX + byW;
-        int sigY       = 8;
-
-        // NebulaCrakMod en rojo (#EF4444)
-        g.drawText(font, sigName, sigNameX, sigY, 0xFFEF4444, false);
-        // " by " en blanco (#FFFFFF)
-        g.drawText(font, sigBy, sigByX, sigY, 0xFFFFFFFF, false);
-        // CDJ dev en verde (#22C55E)
-        g.drawText(font, sigAuthor, sigAuthorX, sigY, 0xFF22C55E, false);
-
-        // Botones y widgets (tabs, contenido)
+        // Render widgets
         super.render(g, mouseX, mouseY, pt);
 
-        // Dropdown de idioma (encima de todo)
-        if (languageDropdownOpen) renderLanguageDropdown(g, mouseX, mouseY);
-
-        // ── ConfiColors: Splash ────────────────────────────────────────────────
-        renderSplash(g);
-
-        // ── TOOLTIP ────────────────────────────────────────────────────────────
-        if (!tooltipTitle.isEmpty() && hoveredWidget != null) {
+        // ── Tooltip ─────────────────────────────────────────────────────────────
+        if (!tooltipTitle.isEmpty()) {
             renderTooltip(g, mouseX, mouseY);
         }
+
+        // ── Dropdown de idioma ──────────────────────────────────────────────────
+        if (languageDropdownOpen) {
+            renderLanguageDropdown(g, mouseX, mouseY);
+        }
     }
 
-    private void renderTooltip(DrawContext g, int mouseX, int mouseY) {
-        TextRenderer font = FontManager.getCurrentFont();
-        int padding = 6;
-        int titleWidth = font.getWidth(tooltipTitle);
-        int descWidth = font.getWidth(tooltipDesc);
-        int maxWidth = Math.max(titleWidth, descWidth);
-        int width = maxWidth + padding * 2;
-        int height = 20 + padding * 2; // title (10) + desc (10) + padding
-
-        int x = mouseX + 16;
-        int y = mouseY - height - 8;
-
-        // Keep tooltip on screen
-        if (x + width > this.width) x = this.width - width - 4;
-        if (y < 4) y = mouseY + 16;
-
-        // Background
-        g.fill(x - 1, y - 1, x + width + 1, y + height + 1, 0xFF1E1E2E);
-        g.fill(x, y, x + width, y + height, 0xFF141418);
-        // Border
-        g.fill(x, y, x + width, y + 1, 0xFF8B5CF6);
-        g.fill(x, y + height - 1, x + width, y + height, 0xFF8B5CF6);
-        g.fill(x, y, x + 1, y + height, 0xFF8B5CF6);
-        g.fill(x + width - 1, y, x + width, y + height, 0xFF8B5CF6);
-
-        // Title
-        g.drawText(font, tooltipTitle, x + padding, y + padding, 0xFFFFFFFF, false);
-        // Description
-        g.drawText(font, tooltipDesc, x + padding, y + padding + 10, 0xFF94A3B8, false);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    //  CONFICOLORS: Fondo personalizado
-    // ═══════════════════════════════════════════════════════════════════════════
     private void renderCustomBackground(DrawContext g) {
-        ConfiColorsConfig.FondoMode mode = ConfiColorsConfig.fondoMode;
-
-        if (mode == ConfiColorsConfig.FondoMode.DISABLED) {
-            // Fondo por defecto de Minecraft
-            renderBackground(g, 0, 0, 0);
-            return;
-        }
-
-        if (mode == ConfiColorsConfig.FondoMode.COLOR) {
-            // Color sólido en toda la pantalla
-            g.fill(0, 0, this.width, this.height, ConfiColorsConfig.fondoColor | 0xFF000000);
-            return;
-        }
-
-        if (mode == ConfiColorsConfig.FondoMode.IMAGE) {
-            // Cargar y renderizar imagen personalizada
-            Identifier texture = NebulaTextureManager.getTexture("fondo");
-            if (texture == null && !ConfiColorsConfig.fondoImageBase64.isEmpty()) {
-                texture = NebulaTextureManager.loadTextureFromBase64("fondo", ConfiColorsConfig.fondoImageBase64);
-            } else if (texture == null && !ConfiColorsConfig.fondoImagePath.isEmpty()) {
-                texture = NebulaTextureManager.loadTextureFromFile("fondo", ConfiColorsConfig.fondoImagePath);
-            }
-
-            if (texture != null) {
-                // Renderizar imagen escalada a toda la pantalla
-                NebulaTextureManager.blit(g, texture, 0, 0, 0, 0, this.width, this.height, this.width, this.height);
-            } else {
-                // Fallback a color
-                g.fill(0, 0, this.width, this.height, ConfiColorsConfig.fondoColor | 0xFF000000);
+        if (ConfiColorsConfig.fondoMode == ConfiColorsConfig.FondoMode.COLOR) {
+            g.fill(0, 0, this.width, this.height, ConfiColorsConfig.fondoColor);
+        } else if (ConfiColorsConfig.fondoMode == ConfiColorsConfig.FondoMode.IMAGE) {
+            if (ConfiColorsConfig.fondoImageBase64 != null && !ConfiColorsConfig.fondoImageBase64.isEmpty()) {
+                Identifier texture = NebulaTextureManager.loadTextureFromBase64("gui_bg", ConfiColorsConfig.fondoImageBase64);
+                if (texture != null) {
+                    g.drawTexture(texture, 0, 0, 0, 0, this.width, this.height, this.width, this.height);
+                }
             }
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    //  CONFICOLORS: PanelCargas
-    // ═══════════════════════════════════════════════════════════════════════════
     private void renderPanelCargas(DrawContext g, int x, int y, int w, int h) {
         if (!ConfiColorsConfig.panelCargasVisible) return;
-
-        int color = ConfiColorsConfig.panelCargasColor;
+        
+        int bgColor = ConfiColorsConfig.panelCargasColor;
         if (ConfiColorsConfig.panelCargasTransparent) {
-            // Panel transparente con color tintado
-            int alpha = 0x80; // 50% transparencia
-            g.fill(x - 1, y - 1, x + w + 1, y + h + 1, (color & 0x00FFFFFF) | (alpha << 24));
-            g.fill(x, y, x + w, y + h, (color & 0x00FFFFFF) | (alpha << 24));
-        } else {
-            // Panel opaco
-            g.fill(x - 1, y - 1, x + w + 1, y + h + 1, color | 0xFF000000);
-            g.fill(x, y, x + w, y + h, color | 0xFF000000);
+            bgColor = (bgColor & 0x00FFFFFF) | 0x80000000; // 50% alpha
         }
+        g.fill(x, y, x + w, y + h, bgColor);
+        
+        // Border
+        g.fill(x, y, x + w, y + 1, 0xFF8B5CF6);
+        g.fill(x, y + h - 1, x + w, y + h, 0xFF8B5CF6);
+        g.fill(x, y, x + 1, y + h, 0xFF8B5CF6);
+        g.fill(x + w - 1, y, x + w, y + h, 0xFF8B5CF6);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    //  CONFICOLORS: Splash
-    // ═══════════════════════════════════════════════════════════════════════════
     private void renderSplash(DrawContext g) {
-        ConfiColorsConfig.SplashMode mode = ConfiColorsConfig.splashMode;
-
-        if (mode == ConfiColorsConfig.SplashMode.DISABLED) return;
-
-        int splashSize = Math.min(this.width, this.height) / 3;
-        int splashX = (this.width - splashSize) / 2;
-        int splashY = (this.height - splashSize) / 2;
-
-        if (mode == ConfiColorsConfig.SplashMode.COLOR) {
-            // Cuadrado de color sólido centrado
-            g.fill(splashX, splashY, splashX + splashSize, splashY + splashSize,
-                   ConfiColorsConfig.splashColor | 0xFF000000);
-            return;
-        }
-
-        if (mode == ConfiColorsConfig.SplashMode.IMAGE) {
-            // Imagen: por compatibilidad con Mojang mappings, usar color de fallback
-            // TODO: Implementar carga de imagen cuando se use mapeo Yarn
-            g.fill(splashX, splashY, splashX + splashSize, splashY + splashSize,
-                   ConfiColorsConfig.splashColor | 0xFF000000);
-        }
+        // Not used in main GUI - handled by mixins
     }
 
     private void renderPanelBg(DrawContext g, int x, int y, int w, int h) {
-        g.fill(x - 1, y - 1, x + w + 1, y + h + 1, 0xFF2A2A38);
-        g.fill(x, y, x + w, y + h, 0xF0101016);
+        g.fill(x, y, x + w, y + h, 0xFF181822);
+        g.fill(x, y, x + w, y + 1, 0xFF2A2A38);
+        g.fill(x, y + h - 1, x + w, y + h, 0xFF2A2A38);
+        g.fill(x, y, x + 1, y + h, 0xFF2A2A38);
+        g.fill(x + w - 1, y, x + w, y + h, 0xFF2A2A38);
     }
 
     private void renderLanguageDropdown(DrawContext g, int mouseX, int mouseY) {
         int dropW = 76, dropX = this.width - dropW - 8, dropY = 25, itemH = 17;
         int dropH = itemH * 2 + 4;
 
-        g.fill(dropX - 1, dropY - 1, dropX + dropW + 1, dropY + dropH + 1, 0xFF8B5CF6);
-        g.fill(dropX, dropY, dropX + dropW, dropY + dropH, 0xF5141420);
+        // Background
+        g.fill(dropX, dropY, dropX + dropW, dropY + dropH, 0xFF181822);
+        g.fill(dropX, dropY, dropX + dropW, dropY + 1, 0xFF8B5CF6);
+        g.fill(dropX, dropY + dropH - 1, dropX + dropW, dropY + dropH, 0xFF8B5CF6);
+        g.fill(dropX, dropY, dropX + 1, dropY + dropH, 0xFF8B5CF6);
+        g.fill(dropX + dropW - 1, dropY, dropX + dropW, dropY + dropH, 0xFF8B5CF6);
 
-        LanguageManager.Language cur = LanguageManager.get();
-        renderLangItem(g, mouseX, mouseY, dropX, dropY + 2, dropW, itemH,
-                       "ES_MX", cur == LanguageManager.Language.ES_MX);
-        renderLangItem(g, mouseX, mouseY, dropX, dropY + 2 + itemH, dropW, itemH,
-                       "EN_US", cur == LanguageManager.Language.EN_US);
+        // Items
+        String[] items = { "ES_MX", "EN_US" };
+        for (int i = 0; i < items.length; i++) {
+            int itemY = dropY + 2 + i * itemH;
+            boolean hovered = mouseX >= dropX && mouseX <= dropX + dropW && mouseY >= itemY && mouseY <= itemY + itemH;
+            if (hovered) g.fill(dropX + 1, itemY, dropX + dropW - 1, itemY + itemH, 0xFF2A2A3E);
+            g.drawText(MinecraftClient.getInstance().textRenderer, items[i], dropX + 8, itemY + 3, 0xFFFFFFFF, false);
+        }
     }
 
-    private void renderLangItem(DrawContext g, int mx, int my,
-                                 int dx, int dy, int dw, int ih,
-                                 String code, boolean selected) {
-        boolean hover   = mx >= dx && mx <= dx + dw && my >= dy && my <= dy + ih;
-        int     bg      = hover ? 0xFF2A2A3A : (selected ? 0xFF261C3C : 0x00000000);
-        if (bg != 0) g.fill(dx + 2, dy, dx + dw - 2, dy + ih, bg);
-        String text  = (selected ? "✓ " : "  ") + code;
-        int    color = selected ? 0xFFA78BFA : (hover ? 0xFFFFFFFF : 0xFFCBD5E1);
-        g.drawText(this.minecraft.textRenderer, text, dx + 8, dy + (ih - 8) / 2, color, false);
+    private void renderTooltip(DrawContext g, int mouseX, int mouseY) {
+        int padding = 6;
+        int titleW = MinecraftClient.getInstance().textRenderer.getWidth(tooltipTitle);
+        int descW = MinecraftClient.getInstance().textRenderer.getWidth(tooltipDesc);
+        int w = Math.max(titleW, descW) + padding * 2;
+        int h = 20 + 14 + padding * 2;
+
+        int tx = mouseX + 16;
+        int ty = mouseY - h - 8;
+        if (tx + w > this.width) tx = mouseX - w - 16;
+        if (ty < 0) ty = mouseY + 16;
+
+        // Background
+        g.fill(tx, ty, tx + w, ty + h, 0xE0101016);
+        g.fill(tx, ty, tx + w, ty + 1, 0xFF8B5CF6);
+        g.fill(tx, ty + h - 1, tx + w, ty + h, 0xFF8B5CF6);
+        g.fill(tx, ty, tx + 1, ty + h, 0xFF8B5CF6);
+        g.fill(tx + w - 1, ty, tx + w, ty + h, 0xFF8B5CF6);
+
+        // Title
+        g.drawText(MinecraftClient.getInstance().textRenderer, tooltipTitle, tx + padding, ty + padding, 0xFFFFFFFF, false);
+        // Desc
+        g.drawText(MinecraftClient.getInstance().textRenderer, tooltipDesc, tx + padding, ty + padding + 20, 0xFFB0BEC5, false);
     }
 
-    @Override
-    public void onClose() {
-        if (this.minecraft != null) this.minecraft.setScreen(parent);
-    }
-
-    // ══════════════════════════════════════════════════════════════════════════
-    //  HELPER METHODS (shared with HUDScreen)
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
+    //  FILE CHOOSER
+    // ═══════════════════════════════════════════════════════════════════════
     private void openFileChooser(java.util.function.Consumer<String> callback) {
         new Thread(() -> {
             try {
@@ -1140,6 +1076,7 @@ public class NebulaGUIScreen extends Screen {
                             }
                         }
                     } catch (Exception ex) {
+                        // Silencioso
                     }
                 });
             }
@@ -1168,6 +1105,7 @@ public class NebulaGUIScreen extends Screen {
         try {
             Desktop.getDesktop().open(new File(path));
         } catch (IOException e) {
+            // Silencioso
         }
     }
 
@@ -1175,5 +1113,10 @@ public class NebulaGUIScreen extends Screen {
         if (path == null || path.isEmpty()) return "";
         File f = new File(path);
         return f.getName();
+    }
+
+    private void addTooltip(AbstractWidget widget, String title, String desc) {
+        // We track tooltip by checking hover state in render()
+        // The tooltip data is stored in the screen and shown when hovering over this widget
     }
 }
