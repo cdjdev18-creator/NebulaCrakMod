@@ -2,13 +2,11 @@ package com.nebulacrak.gui;
 
 import com.nebulacrak.config.NebulaConfig;
 import com.nebulacrak.gui.FontManager;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.font.TextRenderer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.client.gui.widget.AbstractWidget;
-import net.minecraft.client.gui.widget.Button;
-import net.minecraft.client.input.mouse.MouseButtonEvent;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.function.Consumer;
@@ -64,8 +62,8 @@ public class CompactButton extends AbstractWidget {
     }
 
     @Override
-    public void onClick(MouseButtonEvent event) {
-        this.playDownSound(MinecraftClient.getInstance().getSoundManager());
+    public void onClick(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+        this.playDownSound(Minecraft.getInstance().getSoundManager());
         if (event.button() == 1 && this.onRightClick != null) {
             this.onRightClick.accept(this);
         } else if (this.onPress != null) {
@@ -79,8 +77,8 @@ public class CompactButton extends AbstractWidget {
     }
 
     @Override
-    protected void renderWidget(DrawContext context, int mouseX, int mouseY, float partialTick) {
-        TextRenderer font = FontManager.getCurrentFont();
+    protected void renderWidget(GuiGraphics context, int mouseX, int mouseY, float partialTick) {
+        Font font = FontManager.getCurrentFont();
         boolean hovered = this.isHoveredOrFocused();
 
         int x = this.getX();
@@ -206,16 +204,17 @@ public class CompactButton extends AbstractWidget {
         // Renderizado del texto centrado horizontal y verticalmente
         String text = this.getMessage().getString();
         int maxTextWidth = w - 4;
-        if (font.getWidth(text) > maxTextWidth) {
-            text = font.trimToWidth(text, maxTextWidth - font.getWidth("...")) + "...";
+        if (font.width(text) > maxTextWidth) {
+            // Use plainSubstrByWidth for trimming text in Mojang mappings
+            text = font.plainSubstrByWidth(text, maxTextWidth - font.width("...")) + "...";
         }
 
-        context.drawCenteredText(font, text, x + w / 2, textY, textColor);
+        context.drawCenteredString(font, text, x + w / 2, textY, textColor);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════════════════════════════════════════════════════
     //  COLOR SCHEMES PER BUTTON STYLE
-    // ═══════════════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
     // Disabled
     private int getDisabledBg(NebulaConfig.ButtonStyle style) {

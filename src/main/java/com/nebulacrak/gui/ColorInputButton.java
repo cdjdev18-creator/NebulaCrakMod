@@ -1,13 +1,11 @@
 package com.nebulacrak.gui;
 
 import com.nebulacrak.gui.FontManager;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.font.TextRenderer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.client.gui.widget.AbstractWidget;
-import net.minecraft.client.input.keyboard.KeyEvent;
-import net.minecraft.client.input.mouse.MouseButtonEvent;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.function.Consumer;
@@ -33,63 +31,67 @@ public class ColorInputButton extends AbstractWidget {
     }
 
     @Override
-    public void onClick(MouseButtonEvent event) {
+    public void onClick(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
         this.focused = isMouseOver(event.x(), event.y());
-        this.playDownSound(MinecraftClient.getInstance().getSoundManager());
+        this.playDownSound(Minecraft.getInstance().getSoundManager());
     }
 
     @Override
-    public boolean keyPressed(KeyEvent event) {
+    public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
         if (!focused) return false;
 
-        int key = event.key();
-        boolean ctrl = event.modifiers() == 1; // GLFW_MOD_CONTROL
+        int keyCode = event.key();
+        boolean ctrl = event.hasControlDown();
 
         // Handle special keys
-        if (key == 259) { // BACKSPACE
+        if (keyCode == 259) { // BACKSPACE
             if (cursorPosition > 0) {
                 text = text.substring(0, cursorPosition - 1) + text.substring(cursorPosition);
                 cursorPosition--;
                 updateColor();
             }
             return true;
-        } else if (key == 257) { // ENTER
+        } else if (keyCode == 257) { // ENTER
             focused = false;
             return true;
-        } else if (key == 263) { // LEFT
+        } else if (keyCode == 263) { // LEFT
             cursorPosition = Math.max(1, cursorPosition - 1); // Keep # at position 0
             return true;
-        } else if (key == 262) { // RIGHT
+        } else if (keyCode == 262) { // RIGHT
             cursorPosition = Math.min(text.length(), cursorPosition + 1);
             return true;
-        } else if (key == 268) { // HOME
+        } else if (keyCode == 268) { // HOME
             cursorPosition = 1;
             return true;
-        } else if (key == 269) { // END
+        } else if (keyCode == 269) { // END
             cursorPosition = text.length();
             return true;
-        } else if (key == 86 && ctrl) { // CTRL+V - Paste
-            // Handle paste from clipboard
-            return true;
-        }
-
-        // Handle character input (0-9, A-F, a-f)
-        char c = getCharFromKey(key);
-        if (c != 0 && isValidHexChar(c) && text.length() < maxLength) {
-            text = text.substring(0, cursorPosition) + Character.toUpperCase(c) + text.substring(cursorPosition);
-            cursorPosition++;
-            updateColor();
+        } else if (keyCode == 86 && ctrl) { // CTRL+V - Paste
             return true;
         }
 
         return false;
     }
 
-    private char getCharFromKey(int key) {
+    @Override
+    public boolean charTyped(net.minecraft.client.input.CharacterEvent event) {
+        if (!focused) return false;
+        int codepoint = event.codepoint();
+        char c = (char) codepoint;
+        if (isValidHexChar(c) && text.length() < maxLength) {
+            text = text.substring(0, cursorPosition) + Character.toUpperCase(c) + text.substring(cursorPosition);
+            cursorPosition++;
+            updateColor();
+            return true;
+        }
+        return false;
+    }
+
+    private char getCharFromKey(int keyCode) {
         // Map GLFW key codes to characters
-        if (key >= 48 && key <= 57) return (char) ('0' + (key - 48)); // 0-9
-        if (key >= 65 && key <= 90) return (char) ('A' + (key - 65)); // A-Z
-        if (key >= 290 && key <= 301) return (char) ('0' + (key - 290)); // Keypad 0-9
+        if (keyCode >= 48 && keyCode <= 57) return (char) ('0' + (keyCode - 48)); // 0-9
+        if (keyCode >= 65 && keyCode <= 90) return (char) ('A' + (keyCode - 65)); // A-Z
+        if (keyCode >= 290 && keyCode <= 301) return (char) ('0' + (keyCode - 290)); // Keypad 0-9
         return 0;
     }
 
@@ -113,8 +115,8 @@ public class ColorInputButton extends AbstractWidget {
     }
 
     @Override
-    protected void renderWidget(DrawContext context, int mouseX, int mouseY, float partialTick) {
-        TextRenderer font = FontManager.getCurrentFont();
+    protected void renderWidget(GuiGraphics context, int mouseX, int mouseY, float partialTick) {
+        Font font = FontManager.getCurrentFont();
         boolean hovered = isMouseOver(mouseX, mouseY);
 
         int x = getX();
@@ -166,11 +168,11 @@ public class ColorInputButton extends AbstractWidget {
         if (focused && showCursor) {
             // Calculate cursor position
             String beforeCursor = displayText.substring(0, Math.min(cursorPosition, displayText.length()));
-            int cursorX = textX + font.getWidth(beforeCursor);
+            int cursorX = textX + font.width(beforeCursor);
             context.fill(cursorX, textY, cursorX + 1, textY + 8, 0xFFFFFFFF);
         }
 
-        context.drawText(font, displayText, textX, textY, textColor, false);
+        context.drawString(font, displayText, textX, textY, textColor, false);
     }
 
     @Override

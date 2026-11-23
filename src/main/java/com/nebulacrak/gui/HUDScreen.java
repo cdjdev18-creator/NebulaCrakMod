@@ -3,11 +3,11 @@ package com.nebulacrak.gui;
 import com.nebulacrak.config.ConfiColorsConfig;
 import com.nebulacrak.config.NebulaConfig;
 import com.nebulacrak.translation.TranslationManager;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.AbstractWidget;
-import net.minecraft.client.input.mouse.MouseButtonEvent;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
@@ -198,9 +198,9 @@ public class HUDScreen {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════════════
     //  HELPERS DE CONSTRUCCIÓN
-    // ═══════════════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════════════════
 
     private static int buildSectionHeader(List<AbstractWidget> sink, Runnable rebuild,
                                            int left, int y, int width,
@@ -212,7 +212,7 @@ public class HUDScreen {
                 b -> toggle.accept(!expanded),
                 CompactButton.Type.SECTION) {
             @Override
-            protected void renderWidget(DrawContext g, int mx, int my, float pt) {
+            protected void renderWidget(GuiGraphics g, int mx, int my, float pt) {
                 int x = getX(), iy = getY(), w = getWidth(), h = getHeight();
                 // Fondo
                 g.fill(x, iy, x + w, iy + h, 0xFF1E1E2A);
@@ -220,7 +220,7 @@ public class HUDScreen {
                 String text = (expanded ? "▼ " : "▶ ") + title;
                 int tx = x + 8;
                 int ty = iy + (h - 8) / 2;
-                g.drawText(MinecraftClient.getInstance().textRenderer, text, tx, ty, 0xFFFFFFFF, false);
+                g.drawString(Minecraft.getInstance().font, text, tx, ty, 0xFFFFFFFF, false);
             }
         };
         sink.add(sectionBtn);
@@ -285,7 +285,7 @@ public class HUDScreen {
                     Component.empty(), b -> { setter.accept(color); rebuild.run(); },
                     CompactButton.Type.SETTINGS) {
                 @Override
-                protected void renderWidget(DrawContext g, int mx, int my, float pt) {
+                protected void renderWidget(GuiGraphics g, int mx, int my, float pt) {
                     int x = getX(), iy = getY(), w = getWidth(), h = getHeight();
                     g.fill(x + 1, iy + 1, x + w - 1, iy + h - 1, color | 0xFF000000);
                     int border = isSelected ? 0xFFFFFFFF : 0xFF555565;
@@ -380,13 +380,13 @@ public class HUDScreen {
                         // Copiar a la carpeta del mod para persistencia
                         String savedPath = copyImageToModFolder(path);
                         if (savedPath != null) {
-                            MinecraftClient.getInstance().execute(() -> callback.accept(savedPath));
+                            Minecraft.getInstance().execute(() -> callback.accept(savedPath));
                         }
                     }
                 }
             } catch (Exception e) {
                 // Fallback: usar JFileChooser si FileDialog falla
-                MinecraftClient.getInstance().execute(() -> {
+                Minecraft.getInstance().execute(() -> {
                     try {
                         javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
                         chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(

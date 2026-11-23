@@ -41,6 +41,14 @@ public class NebulaConfig {
     public static BackgroundMode loadingScreenBackgroundMode = BackgroundMode.ORIGINAL;
     public static int loadingScreenBackgroundColor = 0xFF121218;
 
+    // ── ConfiColors / HUD settings (synced with ConfiColorsConfig) ───────────
+    public enum PanelMode { NONE, SEMI, SOLID }
+    public static BackgroundMode backgroundMode = BackgroundMode.ORIGINAL;
+    public static int backgroundColor = 0xFF121218;
+    public static String backgroundImagePath = "";
+    public static PanelMode panelCargasMode = PanelMode.NONE;
+    public static int panelCargasColor = 0xFFEF4444;
+
     private static final Path CONFIG_DIR = FabricLoader.getInstance().getConfigDir().resolve("nebulacrakmod");
     private static final Path CONFIG_FILE = CONFIG_DIR.resolve("nebula.json");
 
@@ -76,6 +84,13 @@ public class NebulaConfig {
             loadingScreenBackgroundMode = parseEnum(BackgroundMode.class, root, "loadingScreenBackgroundMode", BackgroundMode.ORIGINAL);
             loadingScreenBackgroundColor = getInt(root, "loadingScreenBackgroundColor", loadingScreenBackgroundColor);
 
+            // ConfiColors / HUD settings
+            backgroundMode = parseEnum(BackgroundMode.class, root, "backgroundMode", BackgroundMode.ORIGINAL);
+            backgroundColor = getInt(root, "backgroundColor", backgroundColor);
+            backgroundImagePath = getString(root, "backgroundImagePath", "");
+            panelCargasMode = parseEnum(PanelMode.class, root, "panelCargasMode", PanelMode.NONE);
+            panelCargasColor = getInt(root, "panelCargasColor", panelCargasColor);
+
             // Validar imágenes
             validateImages();
         } catch (Exception e) {
@@ -99,6 +114,11 @@ public class NebulaConfig {
             loadingScreenBackgroundMode = BackgroundMode.ORIGINAL;
             loadingScreenImagePath = "";
         }
+        if (backgroundMode == BackgroundMode.IMAGE && !backgroundImagePath.isEmpty()
+                && !Files.exists(Path.of(backgroundImagePath))) {
+            backgroundMode = BackgroundMode.ORIGINAL;
+            backgroundImagePath = "";
+        }
     }
 
     public static void save() {
@@ -119,6 +139,11 @@ public class NebulaConfig {
             root.addProperty("mojangScreenBackgroundColor", mojangScreenBackgroundColor);
             root.addProperty("loadingScreenBackgroundMode", loadingScreenBackgroundMode.name());
             root.addProperty("loadingScreenBackgroundColor", loadingScreenBackgroundColor);
+            root.addProperty("backgroundMode", backgroundMode.name());
+            root.addProperty("backgroundColor", backgroundColor);
+            root.addProperty("backgroundImagePath", backgroundImagePath);
+            root.addProperty("panelCargasMode", panelCargasMode.name());
+            root.addProperty("panelCargasColor", panelCargasColor);
 
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             Files.writeString(CONFIG_FILE, gson.toJson(root), StandardCharsets.UTF_8);
