@@ -1,11 +1,11 @@
 package com.nebulacrak.gui;
 
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.client.renderer.texture.NativeImage;
 import net.minecraft.client.renderer.texture.TextureManager;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
 
+import com.mojang.blaze3d.platform.NativeImage;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -20,7 +20,7 @@ import javax.imageio.ImageIO;
 
 /**
  * Gestor de texturas personalizadas para NebulaCrakMod.
- * Usa mapeos Yarn para compatibilidad nativa.
+ * Usa mapeos oficiales de Mojang.
  */
 public class NebulaTextureManager {
     private static final Map<String, DynamicTexture> textureCache = new HashMap<>();
@@ -73,17 +73,17 @@ public class NebulaTextureManager {
             for (int y = 0; y < rgbaImage.getHeight(); y++) {
                 for (int x = 0; x < rgbaImage.getWidth(); x++) {
                     int argb = pixels[y * rgbaImage.getWidth() + x];
-                    nativeImage.setColorArgb(x, y, argb);
+                    nativeImage.setPixel(x, y, argb);
                 }
             }
 
             // Crear DynamicTexture
-            DynamicTexture texture = new DynamicTexture(nativeImage);
+            DynamicTexture texture = new DynamicTexture(() -> "nebulacrakmod:" + key, nativeImage);
             
             // Registrar en el TextureManager de Minecraft
-            MinecraftClient client = MinecraftClient.getInstance();
+            Minecraft client = Minecraft.getInstance();
             TextureManager textureManager = client.getTextureManager();
-            Identifier location = Identifier.of("nebulacrakmod", key + "_" + UUID.randomUUID().toString().substring(0, 8));
+            Identifier location = Identifier.fromNamespaceAndPath("nebulacrakmod", key + "_" + UUID.randomUUID().toString().substring(0, 8));
             textureManager.register(location, texture);
             
             // Guardar en caché
@@ -141,7 +141,7 @@ public class NebulaTextureManager {
         DynamicTexture texture = textureCache.remove(key);
         if (location != null && texture != null) {
             try {
-                MinecraftClient client = MinecraftClient.getInstance();
+                Minecraft client = Minecraft.getInstance();
                 TextureManager textureManager = client.getTextureManager();
                 textureManager.release(location);
                 texture.close();
@@ -154,7 +154,7 @@ public class NebulaTextureManager {
      * Limpia todas las texturas personalizadas.
      */
     public static void clearAll() {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         TextureManager textureManager = client.getTextureManager();
         for (DynamicTexture texture : textureCache.values()) {
             try {
@@ -173,8 +173,8 @@ public class NebulaTextureManager {
     }
 
     /**
-     * Renderiza una textura usando DrawContext.drawTexture.
-     * @param context Instancia de DrawContext
+     * Renderiza una textura usando GuiGraphics.blit.
+     * @param context Instancia de GuiGraphics
      * @param texture Identifier de la textura
      * @param x Posición X
      * @param y Posición Y
@@ -185,8 +185,8 @@ public class NebulaTextureManager {
      * @param textureWidth Ancho de la textura
      * @param textureHeight Alto de la textura
      */
-    public static void blit(net.minecraft.client.gui.DrawContext context, Identifier texture, int x, int y, float u, float v, 
+    public static void blit(net.minecraft.client.gui.GuiGraphics context, Identifier texture, int x, int y, int u, int v, 
                              int width, int height, int textureWidth, int textureHeight) {
-        context.drawTexture(texture, x, y, u, v, width, height, textureWidth, textureHeight);
+        context.blit(texture, x, y, u, v, width, height, textureWidth, textureHeight);
     }
 }

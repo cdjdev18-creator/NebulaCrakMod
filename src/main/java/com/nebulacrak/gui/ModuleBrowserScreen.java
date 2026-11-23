@@ -6,11 +6,11 @@ import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.systems.modules.Category;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.Button;
-import net.minecraft.client.gui.widget.EditBox;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +23,7 @@ public class ModuleBrowserScreen extends Screen {
     private EditBox searchBox;
 
     public ModuleBrowserScreen(Screen parent) {
-        super(Text.literal("NebulaCrakMod - Module Browser"));
+        super(Component.literal("NebulaCrakMod - Module Browser"));
         this.parent = parent;
     }
 
@@ -36,7 +36,7 @@ public class ModuleBrowserScreen extends Screen {
         this.children().clear();
         this.clearWidgets();
 
-        searchBox = new EditBox(this.textRenderer, 110, 10, 180, 20, Text.literal("Search"));
+        searchBox = new EditBox(this.font, 110, 10, 180, 20, Component.literal("Search"));
         searchBox.setValue(search);
         searchBox.setResponder(v -> { search = v.toLowerCase(); rebuild(); });
         this.addRenderableWidget(searchBox);
@@ -44,7 +44,7 @@ public class ModuleBrowserScreen extends Screen {
         int y = 35;
         for (Category category : Modules.loopCategories()) {
             final Category c = category;
-            this.addRenderableWidget(Button.builder(Text.literal(category.name), b -> {
+            this.addRenderableWidget(Button.builder(Component.literal(category.name), b -> {
                 selectedCategory = c;
                 selectedModule = null;
                 rebuild();
@@ -60,7 +60,7 @@ public class ModuleBrowserScreen extends Screen {
         for (Module module : filteredModules()) {
             final Module m = module;
             String label = module.name + (module.isActive() ? " [ON]" : " [OFF]");
-            this.addRenderableWidget(Button.builder(Text.literal(label), b -> {
+            this.addRenderableWidget(Button.builder(Component.literal(label), b -> {
                 selectedModule = m;
                 m.toggle();
                 rebuild();
@@ -75,7 +75,7 @@ public class ModuleBrowserScreen extends Screen {
                 if (setting instanceof BoolSetting) {
                     BoolSetting bool = (BoolSetting) setting;
                     String label = setting.name + ": " + bool.get();
-                    this.addRenderableWidget(Button.builder(Text.literal(label), b -> {
+                    this.addRenderableWidget(Button.builder(Component.literal(label), b -> {
                         bool.set(!bool.get());
                         rebuild();
                     }).bounds(sx, sy, 220, 20).build());
@@ -84,7 +84,7 @@ public class ModuleBrowserScreen extends Screen {
             }
         }
 
-        this.addRenderableWidget(Button.builder(Text.literal("Back"), b -> this.client.setScreen(parent)).bounds(this.width / 2 - 50, this.height - 30, 100, 20).build());
+        this.addRenderableWidget(Button.builder(Component.literal("Back"), b -> this.minecraft.setScreen(parent)).bounds(this.width / 2 - 50, this.height - 30, 100, 20).build());
     }
 
     private List<Module> filteredModules() {
@@ -97,9 +97,9 @@ public class ModuleBrowserScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float partialTick) {
+    public void render(GuiGraphics context, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(context, mouseX, mouseY, partialTick);
-        context.drawCenteredText(this.textRenderer, this.title, this.width / 2, 10, 0xFFFFFF);
+        context.drawCenteredString(this.font, this.title, this.width / 2, 10, 0xFFFFFF);
         super.render(context, mouseX, mouseY, partialTick);
     }
 }
