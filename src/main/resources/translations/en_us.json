@@ -100,7 +100,10 @@
   "confi.image.help":        "Place image in config/nebulacrakmod/bg.png",
   "confi.image.use_default": "Use bg.png",
   "confi.image.use_splash":  "Use splash.png",
+  "confi.image.browse":       "Select image...",
+  "confi.image.replace":      "Replace image...",
   "confi.image.clear":       "Remove image",
+  "confi.image.select":      "Select PNG image",
 
   "confi.keybind.title":           "Open Key",
   "confi.keybind.current":         "Current: ",
@@ -126,5 +129,9 @@
   "gui.nebula.edit_mc.mojang.desc":       "Change the red background of the Mojang splash screen (logo preserved).",
   "gui.nebula.edit_mc.loading.title":     "Loading Screens",
   "gui.nebula.edit_mc.loading.desc":      "Customize loading screen backgrounds for game and resource packs.",
+  "gui.nebula.edit_mc.loading_bar.title": "Resource pack loading bar",
+  "gui.nebula.edit_mc.loading_bar.desc":  "Controls only the red progress fill of the resource loading bar.",
+  "gui.nebula.edit_mc.loading_bar.original": "Original",
+  "gui.nebula.edit_mc.loading_bar.transparent": "Transparent",
   "gui.nebula.hud.color.hex":             "HEX: #RRGGBBAA"
 }

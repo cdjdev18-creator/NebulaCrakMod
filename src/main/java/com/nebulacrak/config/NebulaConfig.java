@@ -41,6 +41,10 @@ public class NebulaConfig {
     public static BackgroundMode loadingScreenBackgroundMode = BackgroundMode.ORIGINAL;
     public static int loadingScreenBackgroundColor = 0xFF121218;
 
+    // ── Barra de progreso de carga/recarga de recursos ───────────────────────
+    public enum LoadingBarMode { ORIGINAL, TRANSPARENT }
+    public static LoadingBarMode loadingBarMode = LoadingBarMode.ORIGINAL;
+
     private static final Path CONFIG_DIR = FabricLoader.getInstance().getConfigDir().resolve("nebulacrakmod");
     private static final Path CONFIG_FILE = CONFIG_DIR.resolve("nebula.json");
 
@@ -75,6 +79,7 @@ public class NebulaConfig {
             mojangScreenBackgroundColor = getInt(root, "mojangScreenBackgroundColor", mojangScreenBackgroundColor);
             loadingScreenBackgroundMode = parseEnum(BackgroundMode.class, root, "loadingScreenBackgroundMode", BackgroundMode.ORIGINAL);
             loadingScreenBackgroundColor = getInt(root, "loadingScreenBackgroundColor", loadingScreenBackgroundColor);
+            loadingBarMode = parseEnum(LoadingBarMode.class, root, "loadingBarMode", LoadingBarMode.ORIGINAL);
 
             // Validar imágenes
             validateImages();
@@ -119,6 +124,7 @@ public class NebulaConfig {
             root.addProperty("mojangScreenBackgroundColor", mojangScreenBackgroundColor);
             root.addProperty("loadingScreenBackgroundMode", loadingScreenBackgroundMode.name());
             root.addProperty("loadingScreenBackgroundColor", loadingScreenBackgroundColor);
+            root.addProperty("loadingBarMode", loadingBarMode.name());
 
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             Files.writeString(CONFIG_FILE, gson.toJson(root), StandardCharsets.UTF_8);

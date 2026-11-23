@@ -1,192 +1,169 @@
 package com.nebulacrak.gui;
 
-import net.minecraft.client.MinecraftClient;
+import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.client.renderer.texture.NativeImage;
-import net.minecraft.client.renderer.texture.TextureManager;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
-import javax.imageio.ImageIO;
-
-/**
- * Gestor de texturas personalizadas para NebulaCrakMod.
- * Usa mapeos Yarn para compatibilidad nativa.
- */
 public class NebulaTextureManager {
+    private static final Logger LOG = LoggerFactory.getLogger("NebulaCrakMod/TextureManager");
     private static final Map<String, DynamicTexture> textureCache = new HashMap<>();
     private static final Map<String, Identifier> identifierCache = new HashMap<>();
+    private static final Map<String, String> contentHashCache = new HashMap<>();
+    private static final Map<String, CompletableFuture<Identifier>> pending = new HashMap<>();
 
-    /**
-     * Carga una imagen desde un archivo y la registra como textura.
-     * @param key Clave única para la textura
-     * @param path Ruta al archivo de imagen
-     * @return Identifier de la textura, o null si falla
-     */
     public static Identifier loadTextureFromFile(String key, String path) {
+        if (key == null || path == null || path.isBlank()) return null;
         try {
             Path filePath = Path.of(path);
-            if (!Files.exists(filePath)) {
-                return null;
-            }
+            if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) return null;
             byte[] bytes = Files.readAllBytes(filePath);
-            return loadTextureFromBytes(key, bytes);
+            String hash = Integer.toHexString(java.util.Arrays.hashCode(bytes)) + "_" + bytes.length;
+            if (hash.equals(contentHashCache.get(key)) && identifierCache.containsKey(key)) {
+                return identifierCache.get(key);
+            }
+            return loadTextureFromBytesInternal(key, bytes, hash);
         } catch (Exception e) {
+            LOG.error("[NebulaTextureManager] Failed to load texture from file key={} path={}", key, path, e);
             return null;
         }
     }
 
-    /**
-     * Carga una imagen desde bytes y la registra como textura.
-     * @param key Clave única para la textura
-     * @param bytes Datos de la imagen
-     * @return Identifier de la textura, o null si falla
-     */
-    public static Identifier loadTextureFromBytes(String key, byte[] bytes) {
-        try {
-            // Validar que es una imagen válida
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
-            if (image == null) {
-                return null;
-            }
-
-            // Convertir a formato RGBA
-            BufferedImage rgbaImage = new BufferedImage(
-                image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
-            rgbaImage.getGraphics().drawImage(image, 0, 0, null);
-
-            // Crear NativeImage
-            NativeImage nativeImage = new NativeImage(rgbaImage.getWidth(), rgbaImage.getHeight(), false);
-            
-            int[] pixels = new int[rgbaImage.getWidth() * rgbaImage.getHeight()];
-            rgbaImage.getRGB(0, 0, rgbaImage.getWidth(), rgbaImage.getHeight(), pixels, 0, rgbaImage.getWidth());
-            
-            for (int y = 0; y < rgbaImage.getHeight(); y++) {
-                for (int x = 0; x < rgbaImage.getWidth(); x++) {
-                    int argb = pixels[y * rgbaImage.getWidth() + x];
-                    nativeImage.setColorArgb(x, y, argb);
-                }
-            }
-
-            // Crear DynamicTexture
-            DynamicTexture texture = new DynamicTexture(nativeImage);
-            
-            // Registrar en el TextureManager de Minecraft
-            MinecraftClient client = MinecraftClient.getInstance();
-            TextureManager textureManager = client.getTextureManager();
-            Identifier location = Identifier.of("nebulacrakmod", key + "_" + UUID.randomUUID().toString().substring(0, 8));
-            textureManager.register(location, texture);
-            
-            // Guardar en caché
-            textureCache.put(key, texture);
-            identifierCache.put(key, location);
-            
-            return location;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * Carga una imagen desde base64 y la registra como textura.
-     * @param key Clave única para la textura
-     * @param base64 String base64 de la imagen
-     * @return Identifier de la textura, o null si falla
-     */
     public static Identifier loadTextureFromBase64(String key, String base64) {
+        if (key == null || base64 == null || base64.isBlank()) return null;
         try {
-            if (base64 == null || base64.isEmpty()) {
-                return null;
+            String hash = Integer.toHexString(base64.hashCode()) + "_" + base64.length();
+            if (hash.equals(contentHashCache.get(key)) && identifierCache.containsKey(key)) {
+                return identifierCache.get(key);
             }
             byte[] bytes = Base64.getDecoder().decode(base64);
-            return loadTextureFromBytes(key, bytes);
+            return loadTextureFromBytesInternal(key, bytes, hash);
         } catch (Exception e) {
+            LOG.error("[NebulaTextureManager] Failed to load base64 texture key={}", key, e);
             return null;
         }
     }
 
-    /**
-     * Obtiene el Identifier de una textura cargada.
-     * @param key Clave de la textura
-     * @return Identifier o null si no existe
-     */
-    public static Identifier getTexture(String key) {
-        return identifierCache.get(key);
+    private static synchronized Identifier loadTextureFromBytesInternal(String key, byte[] bytes, String hash) {
+        try {
+            if (hash.equals(contentHashCache.get(key)) && identifierCache.containsKey(key)) {
+                return identifierCache.get(key);
+            }
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
+            if (image == null) {
+                LOG.warn("[NebulaTextureManager] ImageIO returned null for key={}", key);
+                return null;
+            }
+            int w = image.getWidth();
+            int h = image.getHeight();
+            if (w <= 0 || h <= 0 || w > 4096 || h > 4096) {
+                LOG.warn("[NebulaTextureManager] Invalid image dimensions {}x{} for key={}", w, h, key);
+                return null;
+            }
+
+            NativeImage nativeImage = new NativeImage(NativeImage.Format.RGBA, w, h, true);
+            try {
+                for (int y = 0; y < h; y++) {
+                    for (int x = 0; x < w; x++) {
+                        int argb = image.getRGB(x, y);
+                        int a = (argb >>> 24) & 0xFF;
+                        int r = (argb >>> 16) & 0xFF;
+                        int g = (argb >>> 8) & 0xFF;
+                        int b = argb & 0xFF;
+                        int abgr = (a << 24) | (b << 16) | (g << 8) | r;
+                        nativeImage.setPixelABGR(x, y, abgr);
+                    }
+                }
+            } catch (Throwable t) {
+                try { nativeImage.close(); } catch (Throwable ignored) {}
+                throw t;
+            }
+
+            Minecraft client = Minecraft.getInstance();
+            if (client == null) {
+                nativeImage.close();
+                return null;
+            }
+
+            Identifier location = Identifier.fromNamespaceAndPath("nebulacrakmod", sanitizeKey(key));
+            Runnable register = () -> {
+                try {
+                    unloadTextureInternal(key);
+                    DynamicTexture texture = new DynamicTexture(() -> "nebulacrakmod:" + key, nativeImage);
+                    client.getTextureManager().register(location, texture);
+                    textureCache.put(key, texture);
+                    identifierCache.put(key, location);
+                    contentHashCache.put(key, hash);
+                } catch (Throwable t) {
+                    LOG.error("[NebulaTextureManager] Failed to register texture key={}", key, t);
+                    try { nativeImage.close(); } catch (Throwable ignored) {}
+                    identifierCache.remove(key);
+                    textureCache.remove(key);
+                    contentHashCache.remove(key);
+                }
+            };
+
+            if (client.isSameThread()) {
+                register.run();
+            } else {
+                client.execute(register);
+            }
+            return location;
+        } catch (Exception e) {
+            LOG.error("[NebulaTextureManager] Failed to load texture bytes key={}", key, e);
+            return null;
+        }
     }
 
-    /**
-     * Verifica si una textura está cargada.
-     * @param key Clave de la textura
-     * @return true si la textura existe
-     */
-    public static boolean hasTexture(String key) {
-        return identifierCache.containsKey(key);
+    private static String sanitizeKey(String key) {
+        String s = key.toLowerCase().replaceAll("[^a-z0-9/._-]", "_");
+        if (s.isBlank()) s = "tex";
+        return s;
     }
 
-    /**
-     * Elimina una textura de la caché y del TextureManager.
-     * @param key Clave de la textura
-     */
-    public static void unloadTexture(String key) {
+    public static Identifier getTexture(String key) { return identifierCache.get(key); }
+    public static boolean hasTexture(String key) { return identifierCache.containsKey(key); }
+
+    public static synchronized void unloadTexture(String key) {
+        unloadTextureInternal(key);
+        contentHashCache.remove(key);
+    }
+
+    private static void unloadTextureInternal(String key) {
         Identifier location = identifierCache.remove(key);
         DynamicTexture texture = textureCache.remove(key);
-        if (location != null && texture != null) {
-            try {
-                MinecraftClient client = MinecraftClient.getInstance();
-                TextureManager textureManager = client.getTextureManager();
-                textureManager.release(location);
-                texture.close();
-            } catch (Exception ignored) {
-            }
+        Minecraft client = Minecraft.getInstance();
+        if (location != null && client != null) {
+            try { client.getTextureManager().release(location); } catch (Throwable ignored) {}
+        }
+        if (texture != null) {
+            try { texture.close(); } catch (Throwable ignored) {}
         }
     }
 
-    /**
-     * Limpia todas las texturas personalizadas.
-     */
-    public static void clearAll() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        TextureManager textureManager = client.getTextureManager();
-        for (DynamicTexture texture : textureCache.values()) {
-            try {
-                texture.close();
-            } catch (Exception ignored) {
-            }
-        }
-        for (Identifier location : identifierCache.values()) {
-            try {
-                textureManager.release(location);
-            } catch (Exception ignored) {
-            }
-        }
+    public static synchronized void clearAll() {
+        for (String key : new java.util.ArrayList<>(textureCache.keySet())) unloadTextureInternal(key);
         textureCache.clear();
         identifierCache.clear();
+        contentHashCache.clear();
     }
 
-    /**
-     * Renderiza una textura usando DrawContext.drawTexture.
-     * @param context Instancia de DrawContext
-     * @param texture Identifier de la textura
-     * @param x Posición X
-     * @param y Posición Y
-     * @param u Coordenada U en la textura
-     * @param v Coordenada V en la textura
-     * @param width Ancho
-     * @param height Alto
-     * @param textureWidth Ancho de la textura
-     * @param textureHeight Alto de la textura
-     */
-    public static void blit(net.minecraft.client.gui.DrawContext context, Identifier texture, int x, int y, float u, float v, 
+    public static void blit(net.minecraft.client.gui.GuiGraphics context, Identifier texture, int x, int y, float u, float v,
                              int width, int height, int textureWidth, int textureHeight) {
-        context.drawTexture(texture, x, y, u, v, width, height, textureWidth, textureHeight);
+        if (context == null || texture == null) return;
+        context.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, (int) u, (int) v, width, height, textureWidth, textureHeight);
     }
 }

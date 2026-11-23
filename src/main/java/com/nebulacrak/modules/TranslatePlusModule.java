@@ -14,7 +14,7 @@ import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 
 public class TranslatePlusModule extends Module {
-    public static final Category CATEGORY = NebulaModules.NEBULA_MISC;
+    public static final Category CATEGORY = NebulaModules.NEBULA_CDJ_DEV;
     public static TranslatePlusModule INSTANCE;
 
     public final Setting<LanguageManager.Language> language;

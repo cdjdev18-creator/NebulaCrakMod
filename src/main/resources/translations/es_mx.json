@@ -100,7 +100,10 @@
   "confi.image.help":        "Coloca imagen en config/nebulacrakmod/bg.png",
   "confi.image.use_default": "Usar bg.png",
   "confi.image.use_splash":  "Usar splash.png",
+  "confi.image.browse":       "Seleccionar imagen...",
+  "confi.image.replace":      "Reemplazar imagen...",
   "confi.image.clear":       "Quitar imagen",
+  "confi.image.select":      "Seleccionar imagen PNG",
 
   "confi.keybind.title":           "Tecla de apertura",
   "confi.keybind.current":         "Actual: ",
@@ -126,5 +129,9 @@
   "gui.nebula.edit_mc.mojang.desc":       "Cambia el fondo rojo de la pantalla de inicio de Mojang (logo intacto).",
   "gui.nebula.edit_mc.loading.title":     "Pantallas de Carga",
   "gui.nebula.edit_mc.loading.desc":      "Personaliza fondos de carga para juego y paquetes de recursos.",
+  "gui.nebula.edit_mc.loading_bar.title": "Barra de carga de recursos",
+  "gui.nebula.edit_mc.loading_bar.desc":  "Controla solo el relleno rojo de progreso de la barra de carga.",
+  "gui.nebula.edit_mc.loading_bar.original": "Original",
+  "gui.nebula.edit_mc.loading_bar.transparent": "Transparente",
   "gui.nebula.hud.color.hex":             "HEX: #RRGGBBAA"
 }

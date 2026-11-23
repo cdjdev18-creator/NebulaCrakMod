@@ -11,7 +11,7 @@ import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.minecraft.client.Minecraft;
 
 public class MuteChatPlusModule extends Module {
-    public static final Category CATEGORY = NebulaModules.NEBULA_CHAT;
+    public static final Category CATEGORY = NebulaModules.NEBULA_CDJ_DEV;
 
     public static MuteChatPlusModule INSTANCE;
     public Setting<Boolean> muteChat;

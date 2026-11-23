@@ -1,53 +1,84 @@
 package com.nebulacrak.gui;
 
 import com.nebulacrak.config.NebulaConfig;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.font.TextRenderer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 
 /**
- * Gestor de fuentes simplificado para NebulaCrakMod.
- * Nota: La implementación completa de fuentes TTF personalizadas requeriría
- * registrar un FontProvider en el data pack del mod.
- * Por ahora, usa la fuente predeterminada de Minecraft pero permite
- * rastrear la preferencia del usuario.
+ * Gestor de fuentes de NebulaCrakMod.
+ *
+ * Estado actual: la selección de fuente personalizada (Arial/Consolas) se conserva
+ * en NebulaConfig para uso futuro, pero no hay implementación real de TTF personalizada
+ * en esta versión. El fallback efectivo es la fuente predeterminada de Minecraft.
  */
-public class FontManager {
-    private static TextRenderer minecraftFont;
+public final class FontManager {
+    private static Font minecraftFont;
     private static boolean initialized = false;
 
+    private FontManager() {
+    }
+
     /**
-     * Inicializa el gestor de fuentes.
-     * Debe llamarse después de que Minecraft esté inicializado.
+     * Inicializa el gestor solo cuando Minecraft y su fuente están disponibles.
+     * No marca initialized=true si no hay fuente válida.
      */
     public static void init() {
-        if (initialized) return;
-        
-        minecraftFont = MinecraftClient.getInstance().textRenderer;
+        if (initialized && minecraftFont != null) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) {
+            clearReferences();
+            return;
+        }
+
+        Font font = mc.font;
+        if (font == null) {
+            clearReferences();
+            return;
+        }
+
+        minecraftFont = font;
         initialized = true;
     }
 
     /**
-     * Obtiene la fuente actual según la configuración.
-     * Por ahora siempre retorna la fuente de Minecraft.
+     * Devuelve la fuente actual. Fallback seguro a Minecraft.getInstance().font cuando existe.
      */
-    public static TextRenderer getCurrentFont() {
-        if (!initialized) init();
-        return minecraftFont;
+    public static Font getCurrentFont() {
+        ensureInitialized();
+        if (minecraftFont != null) return minecraftFont;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc != null && mc.font != null) {
+            return mc.font;
+        }
+        return null;
     }
 
     /**
-     * Obtiene una fuente específica por tipo.
-     * Por ahora siempre retorna la fuente de Minecraft.
+     * Compatibilidad con NebulaConfig.FontType.
+     * No hay implementación real de fuentes personalizadas; retorna fallback de Minecraft.
      */
-    public static TextRenderer getFont(NebulaConfig.FontType type) {
-        if (!initialized) init();
-        return minecraftFont;
+    public static Font getFont(NebulaConfig.FontType type) {
+        // type reservado para selección futura de fuentes personalizadas.
+        return getCurrentFont();
     }
 
     /**
-     * Limpia la caché (reinicializa en próximo uso).
+     * Limpia referencias y estado para permitir reinicialización segura.
      */
     public static void clearCache() {
+        clearReferences();
+    }
+
+    private static void ensureInitialized() {
+        if (!initialized || minecraftFont == null) {
+            init();
+        }
+    }
+
+    private static void clearReferences() {
+        minecraftFont = null;
         initialized = false;
     }
 }
