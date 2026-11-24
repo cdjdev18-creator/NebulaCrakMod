@@ -22,14 +22,18 @@ public final class ImageFileUtil {
     private ImageFileUtil() {}
 
     public static void openPngPicker(String title, Consumer<String> onSelected, Consumer<String> onError) {
+        openImagePicker(title, false, onSelected, onError);
+    }
+
+    public static void openImagePicker(String title, boolean allowJpg, Consumer<String> onSelected, Consumer<String> onError) {
         Thread t = new Thread(() -> {
             try {
-                String selected = openPngDialog(title);
+                String selected = openImageDialog(title, allowJpg);
                 if (selected == null || selected.isBlank()) return;
                 Path path = Path.of(selected.trim().replace("\"", ""));
-                String validationError = validatePng(path);
+                String validationError = validateImage(path, allowJpg);
                 if (validationError != null) {
-                    LOG.warn("[ImageFileUtil] Invalid PNG selected {}: {}", path, validationError);
+                    LOG.warn("[ImageFileUtil] Invalid image selected {}: {}", path, validationError);
                     mcExec(() -> onError.accept(validationError));
                     return;
                 }
@@ -40,7 +44,7 @@ public final class ImageFileUtil {
                 }
                 mcExec(() -> onSelected.accept(saved));
             } catch (Throwable e) {
-                LOG.error("[ImageFileUtil] PNG picker failed", e);
+                LOG.error("[ImageFileUtil] Image picker failed", e);
                 mcExec(() -> onError.accept("Error al abrir/leer imagen: " + e.getClass().getSimpleName()));
             }
         }, "Nebula-ImagePicker");
@@ -53,17 +57,22 @@ public final class ImageFileUtil {
         if (mc != null) mc.execute(r);
     }
 
-    private static String openPngDialog(String title) {
+    private static String openImageDialog(String title, boolean allowJpg) {
         String defaultPath = System.getProperty("user.home") + File.separator + "Pictures" + File.separator;
+        String filterDesc = allowJpg ? "Images (*.png;*.jpg;*.jpeg)" : "PNG Images (*.png)";
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            PointerBuffer patterns = stack.mallocPointer(1);
+            PointerBuffer patterns = stack.mallocPointer(allowJpg ? 3 : 1);
             patterns.put(stack.UTF8("*.png"));
+            if (allowJpg) {
+                patterns.put(stack.UTF8("*.jpg"));
+                patterns.put(stack.UTF8("*.jpeg"));
+            }
             patterns.flip();
             String result = TinyFileDialogs.tinyfd_openFileDialog(
-                    title == null ? "Seleccionar imagen PNG" : title,
+                    title == null ? filterDesc : title,
                     defaultPath,
                     patterns,
-                    "PNG Images (*.png)",
+                    filterDesc,
                     false
             );
             if (result != null && !result.isBlank()) return result;
@@ -72,8 +81,9 @@ public final class ImageFileUtil {
         }
 
         try {
-            String safeTitle = (title == null ? "Seleccionar imagen PNG" : title).replace("'", "''");
-            String cmd = "powershell.exe -NoProfile -STA -Command \"Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.OpenFileDialog; $f.Filter = 'PNG Images (*.png)|*.png'; $f.InitialDirectory = '" + defaultPath.replace("\\", "\\\\") + "'; $f.Title = '" + safeTitle + "'; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.FileName }\"";
+            String safeTitle = (title == null ? filterDesc : title).replace("'", "''");
+            String filter = allowJpg ? "Image Files (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg" : "PNG Images (*.png)|*.png";
+            String cmd = "powershell.exe -NoProfile -STA -Command \"Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.OpenFileDialog; $f.Filter = '" + filter + "'; $f.InitialDirectory = '" + defaultPath.replace("\\", "\\\\") + "'; $f.Title = '" + safeTitle + "'; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.FileName }\"";
             Process process = Runtime.getRuntime().exec(cmd);
             String out = new String(process.getInputStream().readAllBytes()).trim();
             process.waitFor();
@@ -84,21 +94,25 @@ public final class ImageFileUtil {
         return null;
     }
 
-    public static String validatePng(Path path) {
+    public static String validatePng(Path path) { return validateImage(path, false); }
+
+    public static String validateImage(Path path, boolean allowJpg) {
         if (path == null) return "Ruta inválida.";
         if (!Files.exists(path)) return "El archivo no existe.";
         if (!Files.isRegularFile(path)) return "La ruta no es un archivo.";
         String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
-        if (!name.endsWith(".png")) return "Solo se permiten imágenes PNG.";
+        boolean png = name.endsWith(".png");
+        boolean jpg = name.endsWith(".jpg") || name.endsWith(".jpeg");
+        if (!png && !(allowJpg && jpg)) return allowJpg ? "Solo se permiten imágenes PNG/JPG." : "Solo se permiten imágenes PNG.";
         try {
-            if (Files.size(path) > 10L * 1024L * 1024L) return "PNG demasiado grande (máx 10MB).";
+            if (Files.size(path) > 10L * 1024L * 1024L) return "Imagen demasiado grande (máx 10MB).";
             BufferedImage img = ImageIO.read(path.toFile());
-            if (img == null) return "El archivo PNG no es válido o no se pudo leer.";
+            if (img == null) return "La imagen no es válida o no se pudo leer.";
             if (img.getWidth() <= 0 || img.getHeight() <= 0) return "Dimensiones de imagen inválidas.";
             if (img.getWidth() > 4096 || img.getHeight() > 4096) return "Imagen demasiado grande (máx 4096x4096).";
         } catch (Throwable e) {
-            LOG.warn("[ImageFileUtil] validatePng failed for {}", path, e);
-            return "No se pudo validar la imagen PNG.";
+            LOG.warn("[ImageFileUtil] validateImage failed for {}", path, e);
+            return "No se pudo validar la imagen.";
         }
         return null;
     }
@@ -128,9 +142,10 @@ public final class ImageFileUtil {
             String fileName = source.getFileName().toString();
             int dot = fileName.lastIndexOf('.');
             String baseName = dot > 0 ? fileName.substring(0, dot) : fileName;
+            String ext = dot > 0 ? fileName.substring(dot).toLowerCase(Locale.ROOT) : ".png";
+            if (!ext.equals(".png") && !ext.equals(".jpg") && !ext.equals(".jpeg")) ext = ".png";
             baseName = baseName.replaceAll("[^a-zA-Z0-9._-]", "_");
             if (baseName.isBlank()) baseName = "image";
-            String ext = ".png";
             Path dest = modDir.resolve(baseName + "_" + System.currentTimeMillis() + ext);
             Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
             return dest.toAbsolutePath().toString();

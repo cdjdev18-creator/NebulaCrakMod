@@ -84,10 +84,11 @@ public class LoadingOverlayMixin {
 
     @Unique
     private NebulaConfig.BackgroundMode nebulacrak$getActiveMode() {
-        NebulaConfig.BackgroundMode mode = NebulaConfig.mojangScreenBackgroundMode;
+        NebulaConfig.ScreenBackground bg = NebulaConfig.getScreenBackground("mojang");
+        NebulaConfig.BackgroundMode mode = bg.mode();
         if (mode == null) mode = NebulaConfig.BackgroundMode.ORIGINAL;
         if (mode == NebulaConfig.BackgroundMode.IMAGE) {
-            String path = NebulaConfig.mojangScreenImagePath;
+            String path = bg.imagePath();
             if (path == null || path.isEmpty()) return NebulaConfig.BackgroundMode.ORIGINAL;
         }
         return mode;
@@ -95,15 +96,13 @@ public class LoadingOverlayMixin {
 
     @Unique
     private int nebulacrak$getActiveColor(NebulaConfig.BackgroundMode mode) {
-        if (mode == NebulaConfig.BackgroundMode.COLOR || mode == NebulaConfig.BackgroundMode.IMAGE) {
-            return NebulaConfig.mojangScreenBackgroundColor;
-        }
-        return NebulaConfig.mojangScreenBackgroundColor;
+        NebulaConfig.ScreenBackground bg = NebulaConfig.getScreenBackground("mojang");
+        return bg.color();
     }
 
     @Unique
     private String nebulacrak$getActiveImagePath() {
-        return NebulaConfig.mojangScreenImagePath;
+        return NebulaConfig.getScreenBackground("mojang").imagePath();
     }
 
     @Unique

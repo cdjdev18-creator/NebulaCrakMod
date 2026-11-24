@@ -127,8 +127,9 @@ public class HUDScreen {
     }
 
     private static void openFileDialog(Consumer<String> callback, Runnable rebuild) {
-        ImageFileUtil.openPngPicker(
-                TranslationManager.get("confi.image.select", "Seleccionar imagen PNG"),
+        ImageFileUtil.openImagePicker(
+                TranslationManager.get("confi.image.select", "Seleccionar imagen PNG/JPG"),
+                true,
                 path -> { callback.accept(path); rebuild.run(); },
                 err -> ImageFileUtil.notifyClient(err)
         );

@@ -2,6 +2,7 @@ package com.nebulacrak.gui;
 
 import com.nebulacrak.language.LanguageManager;
 import com.nebulacrak.modules.MuteChatPlusModule;
+import com.nebulacrak.modules.RangosChangeModule;
 import com.nebulacrak.modules.SkinCharPlusModule;
 import com.nebulacrak.modules.TranslatePlusModule;
 import com.nebulacrak.translation.TranslationManager;
@@ -48,22 +49,29 @@ public class NebulaModules {
 
     public static final CDJCategory CATEGORY_PLAYER = new CDJCategory("player", "nebula.category.player", "Player");
     public static final CDJCategory CATEGORY_CHAT = new CDJCategory("chat", "nebula.category.chat", "Chat");
+    public static final CDJCategory CATEGORY_SERVER = new CDJCategory("server", "nebula.category.server", "Server");
+    public static final CDJCategory CATEGORY_WORLD = new CDJCategory("world", "nebula.category.world", "World");
     public static final CDJCategory CATEGORY_MISC = new CDJCategory("misc", "nebula.category.misc", "Misc");
 
     static {
         CDJ_CATEGORIES.add(CATEGORY_PLAYER);
         CDJ_CATEGORIES.add(CATEGORY_CHAT);
+        CDJ_CATEGORIES.add(CATEGORY_SERVER);
+        CDJ_CATEGORIES.add(CATEGORY_WORLD);
         CDJ_CATEGORIES.add(CATEGORY_MISC);
 
         CATEGORY_PLAYER.add(new PlayerDetectorModule());
+        CATEGORY_PLAYER.add(new SkinCharPlusModule());
         CATEGORY_CHAT.add(new ChatDetectorModule());
         CATEGORY_CHAT.add(new MuteChatPlusModule());
+        CATEGORY_SERVER.add(new RangosChangeModule());
         CATEGORY_MISC.add(new TranslatePlusModule());
-        CATEGORY_MISC.add(new SkinCharPlusModule());
     }
 
     public static final List<Module> PLAYER_MODULES = CATEGORY_PLAYER.getModules();
     public static final List<Module> CHAT_MODULES = CATEGORY_CHAT.getModules();
+    public static final List<Module> SERVER_MODULES = CATEGORY_SERVER.getModules();
+    public static final List<Module> WORLD_MODULES = CATEGORY_WORLD.getModules();
     public static final List<Module> MISC_MODULES = CATEGORY_MISC.getModules();
 
     /**
