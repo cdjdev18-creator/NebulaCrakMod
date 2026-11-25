@@ -1,7 +1,9 @@
 package com.nebulacrak.gui;
 
 import com.nebulacrak.language.LanguageManager;
+import com.nebulacrak.modules.DiscordConnectModule;
 import com.nebulacrak.modules.MuteChatPlusModule;
+import com.nebulacrak.modules.PlayerRadarModule;
 import com.nebulacrak.modules.RangosChangeModule;
 import com.nebulacrak.modules.SkinCharPlusModule;
 import com.nebulacrak.modules.TranslatePlusModule;
@@ -61,11 +63,13 @@ public class NebulaModules {
         CDJ_CATEGORIES.add(CATEGORY_MISC);
 
         CATEGORY_PLAYER.add(new PlayerDetectorModule());
+        CATEGORY_PLAYER.add(new PlayerRadarModule());
         CATEGORY_PLAYER.add(new SkinCharPlusModule());
         CATEGORY_CHAT.add(new ChatDetectorModule());
         CATEGORY_CHAT.add(new MuteChatPlusModule());
         CATEGORY_SERVER.add(new RangosChangeModule());
         CATEGORY_MISC.add(new TranslatePlusModule());
+        CATEGORY_MISC.add(new DiscordConnectModule());
     }
 
     public static final List<Module> PLAYER_MODULES = CATEGORY_PLAYER.getModules();

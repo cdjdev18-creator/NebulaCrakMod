@@ -49,15 +49,33 @@ public class RangosChangeModule extends Module {
     private final SettingGroup sgStatus = settings.createGroup("Estado y Roles");
     private final SettingGroup sgCache = settings.createGroup("Cache jugadores cercanos");
 
+    private final Setting<Boolean> consultOptions = sgActions.add(new BoolSetting.Builder()
+        .name("consultar-opciones")
+        .description("1 clic: solicita /prefix en 6b6t para consultar opciones oficiales disponibles. Solo envía comando oficial; no inventa opciones.")
+        .defaultValue(false)
+        .build());
+
     private final Setting<Boolean> openPrefixSelector = sgActions.add(new BoolSetting.Builder()
         .name("abrir-selector-prefix")
-        .description("1 clic: envía /prefix oficial en 6b6t para abrir el selector. No se envía automáticamente. Requiere permisos/rango reales del servidor.")
+        .description("1 clic: envía /prefix oficial en 6b6t. El selector/opciones dependen del servidor. Requiere permisos/rango reales.")
+        .defaultValue(false)
+        .build());
+
+    private final Setting<String> prefixToRequest = sgActions.add(new StringSetting.Builder()
+        .name("prefijo-a-solicitar")
+        .description("Prefijo observado a solicitar. Solo se enviará si coincide con una opción observada del servidor y pulsas 'aplicar-prefijo-observado'.")
+        .defaultValue("")
+        .build());
+
+    private final Setting<Boolean> applyObservedPrefix = sgActions.add(new BoolSetting.Builder()
+        .name("aplicar-prefijo-observado")
+        .description("Solicita el prefijo escrito arriba SOLO si fue observado en respuestas del servidor. Envía comando oficial /prefix <valor> bajo solicitud explícita; si el servidor no lo acepta, se mostrará rechazo.")
         .defaultValue(false)
         .build());
 
     private final Setting<QuickAction> quickAction = sgActions.add(new EnumSetting.Builder<QuickAction>()
         .name("accion-rapida")
-        .description("Acción rápida con un clic (al seleccionar una acción distinta de Ninguna).")
+        .description("Acción rápida con un clic.")
         .defaultValue(QuickAction.NONE)
         .build());
 
@@ -117,6 +135,7 @@ public class RangosChangeModule extends Module {
 
     private final Deque<String> history = new ArrayDeque<>();
     private final Map<String, String> nearbyRoleCache = new ConcurrentHashMap<>();
+    private final Set<String> observedPrefixOptions = Collections.synchronizedSet(new LinkedHashSet<>());
 
     private boolean resetting;
     private long lastCommandMs = 0L;
@@ -146,31 +165,18 @@ public class RangosChangeModule extends Module {
     @EventHandler
     private void onTick(TickEvent.Post event) {
         if (!isActive()) return;
-
         updateConnectionStatus();
 
-        if (clearStatus.get()) {
-            resetBool(clearStatus);
-            clearLocalState("Estado local limpiado");
-        }
-
-        if (openPrefixSelector.get()) {
-            resetBool(openPrefixSelector);
-            requestPrefixSelector();
-        }
+        if (clearStatus.get()) { resetBool(clearStatus); clearLocalState("Estado local limpiado"); }
+        if (consultOptions.get()) { resetBool(consultOptions); requestPrefixSelector("consultar-opciones"); }
+        if (openPrefixSelector.get()) { resetBool(openPrefixSelector); requestPrefixSelector("abrir-selector-prefix"); }
+        if (applyObservedPrefix.get()) { resetBool(applyObservedPrefix); requestObservedPrefix(); }
 
         QuickAction action = quickAction.get();
-        if (action != null && action != QuickAction.NONE) {
-            quickAction.set(QuickAction.NONE);
-            handleQuickAction(action);
-        }
+        if (action != null && action != QuickAction.NONE) { quickAction.set(QuickAction.NONE); handleQuickAction(action); }
 
         long now = System.currentTimeMillis();
-        if (scanTablist.get() && now - lastTabScanMs > TAB_SCAN_INTERVAL_MS) {
-            lastTabScanMs = now;
-            inspectPlayerTablist();
-        }
-
+        if (scanTablist.get() && now - lastTabScanMs > TAB_SCAN_INTERVAL_MS) { lastTabScanMs = now; inspectPlayerTablist(); }
         if (awaitingPrefixResponse && now - lastPrefixRequestMs > PREFIX_TIMEOUT_MS) {
             awaitingPrefixResponse = false;
             verificationState.set("No se pudo verificar");
@@ -183,12 +189,8 @@ public class RangosChangeModule extends Module {
     private void handleQuickAction(QuickAction action) {
         if (action == null) return;
         switch (action) {
-            case OPEN_PREFIX_SELECTOR -> requestPrefixSelector();
-            case REFRESH_TABLIST -> {
-                inspectPlayerTablist();
-                addHistory("Tablist escaneada manualmente");
-                notifyState("Tablist escaneada");
-            }
+            case OPEN_PREFIX_SELECTOR -> requestPrefixSelector("accion-rapida");
+            case REFRESH_TABLIST -> { inspectPlayerTablist(); addHistory("Tablist escaneada manualmente"); notifyState("Tablist escaneada"); }
             case CLEAR_LOCAL_STATE -> clearLocalState("Estado local limpiado");
             case NONE -> { }
         }
@@ -209,10 +211,7 @@ public class RangosChangeModule extends Module {
         lastCommand.set("Enviado: " + truncate(cmd));
         verificationState.set("Comando enviado.");
         addHistory("Enviado: " + truncate(cmd));
-        if (cmd.toLowerCase(Locale.ROOT).startsWith("/prefix")) {
-            awaitingPrefixResponse = true;
-            lastPrefixRequestMs = System.currentTimeMillis();
-        }
+        if (cmd.toLowerCase(Locale.ROOT).startsWith("/prefix")) { awaitingPrefixResponse = true; lastPrefixRequestMs = System.currentTimeMillis(); }
     }
 
     public void handleServerMessage(String rawMessage) {
@@ -224,68 +223,60 @@ public class RangosChangeModule extends Module {
         detectPrefixResponse(msg, lower);
     }
 
-    private void requestPrefixSelector() {
+    private void requestPrefixSelector(String source) { sendPrefixCommand("prefix", source, "abrir/consultar selector oficial /prefix"); }
+
+    private void requestObservedPrefix() {
+        String requested = sanitizeRequestedPrefix(prefixToRequest.get());
+        if (requested.isBlank()) {
+            verificationState.set("Opción no disponible.");
+            lastResponse.set("Escribe un prefijo observado antes de aplicar.");
+            addHistory("Aplicar prefijo: vacío");
+            return;
+        }
+        if (!observedPrefixOptions.contains(requested.toLowerCase(Locale.ROOT))) {
+            verificationState.set("Opción no disponible.");
+            lastResponse.set("El prefijo '" + requested + "' no ha sido observado en respuestas del servidor. No se envía.");
+            addHistory("Prefijo no observado: " + requested);
+            return;
+        }
+        sendPrefixCommand("prefix " + requested, "aplicar-prefijo-observado", "solicitar prefijo observado");
+    }
+
+    private void sendPrefixCommand(String command, String source, String op) {
         Minecraft mc = Minecraft.getInstance();
         String host = getCurrentServerHost();
-        logDiag("server=" + host + ", rank=" + detectedRank.get() + ", op=abrir-selector-prefix");
+        logDiag("server=" + host + ", rank=" + detectedRank.get() + ", op=" + op + ", source=" + source);
 
         if (mc == null || mc.getConnection() == null || mc.player == null) {
-            verificationState.set("No se pudo verificar");
-            lastResponse.set("No conectado: no se puede enviar /prefix.");
-            addHistory("Error: no conectado");
-            logDiag("result=error reason=not-connected");
-            info("No conectado.");
-            return;
+            verificationState.set("No se pudo verificar"); lastResponse.set("No conectado: no se puede enviar /prefix."); addHistory("Error: no conectado"); logDiag("result=error reason=not-connected"); info("No conectado."); return;
         }
         if (!is6b6tHost(host)) {
-            verificationState.set("Opción no disponible.");
-            lastResponse.set("Fuera de 6b6t: /prefix específico no se envía automáticamente. Host: " + host);
-            addHistory("Bloqueado: fuera de 6b6t");
-            logDiag("result=blocked reason=not-6b6t host=" + host);
-            info("Servidor no compatible con /prefix de 6b6t.");
-            return;
+            verificationState.set("Opción no disponible."); lastResponse.set("Fuera de 6b6t: /prefix específico no se envía automáticamente. Host: " + host); addHistory("Bloqueado: fuera de 6b6t"); logDiag("result=blocked reason=not-6b6t host=" + host); info("Servidor no compatible con /prefix de 6b6t."); return;
         }
-
         long now = System.currentTimeMillis();
         if (now - lastCommandMs < COMMAND_COOLDOWN_MS) {
-            verificationState.set("Seleccionando...");
-            lastResponse.set("Espera anti-spam antes de enviar otro comando.");
-            addHistory("Anti-spam /prefix");
-            logDiag("result=blocked reason=cooldown");
-            return;
+            verificationState.set("Seleccionando..."); lastResponse.set("Espera anti-spam antes de enviar otro comando."); addHistory("Anti-spam /prefix"); logDiag("result=blocked reason=cooldown"); return;
         }
-
         try {
             verificationState.set("Seleccionando...");
-            lastCommandMs = now;
-            lastPrefixRequestMs = now;
-            awaitingPrefixResponse = true;
-            lastCommand.set("Enviado: /prefix");
-            addHistory("Click: abrir /prefix");
-            logDiag("command=/prefix sent=true");
-            mc.getConnection().sendCommand("prefix");
-            verificationState.set("Comando enviado.");
-            lastResponse.set("Solicitud enviada: /prefix. Esperando respuesta real del servidor.");
-            info("Comando enviado: /prefix");
-            notifyState("Comando /prefix enviado");
+            lastCommandMs = now; lastPrefixRequestMs = now; awaitingPrefixResponse = true;
+            lastCommand.set("Enviado: /" + command); addHistory("Click: /" + command); logDiag("command=/" + command + " sent=true");
+            mc.getConnection().sendCommand(command);
+            verificationState.set("Comando enviado."); lastResponse.set("Solicitud enviada: /" + command + ". Esperando respuesta real del servidor.");
+            info("Comando enviado: /" + command); notifyState("Comando /" + command + " enviado");
         } catch (Throwable t) {
-            awaitingPrefixResponse = false;
-            verificationState.set("Operación rechazada.");
-            lastResponse.set("Error al enviar /prefix: " + t.getClass().getSimpleName());
-            addHistory("Error enviando /prefix");
-            logDiag("result=rejected reason=send-exception type=" + t.getClass().getSimpleName());
-            LOG.warn("[RangosChange] Failed to send /prefix", t);
-            notifyState("Error enviando /prefix");
+            awaitingPrefixResponse = false; verificationState.set("Operación rechazada.");
+            lastResponse.set("Error al enviar /" + command + ": " + t.getClass().getSimpleName());
+            addHistory("Error enviando /" + command); logDiag("result=rejected reason=send-exception type=" + t.getClass().getSimpleName());
+            LOG.warn("[RangosChange] Failed to send /{}", command, t); notifyState("Error enviando comando");
         }
     }
 
     private void inspectPlayerTablist() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.getConnection() == null || mc.player == null) return;
-
         String selfName = mc.player.getGameProfile().name();
         if (selfName == null || selfName.isBlank()) return;
-
         Map<String, String> snapshot = new LinkedHashMap<>();
         for (PlayerInfo info : mc.getConnection().getListedOnlinePlayers()) {
             if (info == null || info.getProfile() == null) continue;
@@ -295,22 +286,13 @@ public class RangosChangeModule extends Module {
             String text = displayName != null ? displayName.getString() : name;
             String prefix = extractPrefixToken(text);
             String rank = rankFromText(text);
-            if (!prefix.isBlank() || !rank.isBlank()) {
-                snapshot.put(name, (prefix.isBlank() ? "-" : prefix) + (rank.isBlank() ? "" : " " + rank));
-            }
-            if (name.equalsIgnoreCase(selfName)) {
-                parseAndAssignRoleFromText(text);
-            }
+            if (!prefix.isBlank() || !rank.isBlank()) snapshot.put(name, (prefix.isBlank() ? "-" : prefix) + (rank.isBlank() ? "" : " " + rank));
+            if (name.equalsIgnoreCase(selfName)) parseAndAssignRoleFromText(text);
         }
-
         if (!snapshot.isEmpty()) {
             nearbyRoleCache.clear();
             int count = 0;
-            for (Map.Entry<String, String> e : snapshot.entrySet()) {
-                nearbyRoleCache.put(e.getKey(), e.getValue());
-                count++;
-                if (count >= MAX_CACHED_PLAYERS) break;
-            }
+            for (Map.Entry<String, String> e : snapshot.entrySet()) { nearbyRoleCache.put(e.getKey(), e.getValue()); count++; if (count >= MAX_CACHED_PLAYERS) break; }
             cachedPlayers.set(formatNearbyCache());
         }
     }
@@ -322,8 +304,7 @@ public class RangosChangeModule extends Module {
         for (Map.Entry<String, String> e : nearbyRoleCache.entrySet()) {
             if (i > 0) sb.append(" | ");
             sb.append(truncate(e.getKey() + ": " + e.getValue(), 40));
-            i++;
-            if (i >= 6) break; // keep setting readable
+            i++; if (i >= 6) break;
         }
         if (nearbyRoleCache.size() > 6) sb.append(" (+").append(nearbyRoleCache.size() - 6).append(")");
         return sb.toString();
@@ -332,85 +313,89 @@ public class RangosChangeModule extends Module {
     private void parseAndAssignRoleFromText(String text) {
         if (text == null || text.isBlank()) return;
         String prefix = extractPrefixToken(text);
-        if (!prefix.isBlank()) {
-            currentPrefix.set(prefix + " (Tablist)");
-        }
+        if (!prefix.isBlank()) { currentPrefix.set(prefix + " (Tablist)"); rememberObservedPrefix(prefix); }
         String rank = rankFromText(text);
-        if (!rank.isBlank()) {
-            detectedRank.set(rank + " (Tablist)");
-            assignedRole.set(mapRole(rank));
-        }
+        if (!rank.isBlank()) { detectedRank.set(rank + " (Tablist)"); assignedRole.set(mapRole(rank)); }
     }
 
     private void detectRankFromMessage(String msg, String lower) {
         Minecraft mc = Minecraft.getInstance();
         String self = mc != null && mc.player != null ? mc.player.getGameProfile().name() : "";
         if (self == null || self.isBlank()) return;
-        boolean mentionsSelf = lower.contains(self.toLowerCase(Locale.ROOT));
-        if (!mentionsSelf) return;
-
+        if (!lower.contains(self.toLowerCase(Locale.ROOT))) return;
         String rank = rankFromText(msg);
-        if (!rank.isBlank()) {
-            detectedRank.set(rank + " (evidencia en mensaje)");
-            assignedRole.set(mapRole(rank));
-            addHistory("Rango detectado: " + rank);
-            notifyState("Rango detectado: " + rank);
-        }
+        if (!rank.isBlank()) { detectedRank.set(rank + " (evidencia en mensaje)"); assignedRole.set(mapRole(rank)); addHistory("Rango detectado: " + rank); notifyState("Rango detectado: " + rank); }
     }
 
     private void detectPrefixResponse(String msg, String lower) {
         boolean relevant = awaitingPrefixResponse || lower.contains("prefix") || lower.contains("prefijo") || lower.contains("rango") || lower.contains("rank");
         if (!relevant) return;
+        captureObservedPrefixes(msg);
 
         if (containsAny(lower, "no permission", "don't have permission", "not allowed", "you need", "must be", "required", "no tienes permiso", "no puedes", "sin permiso")) {
-            awaitingPrefixResponse = false;
-            verificationState.set("No tienes permisos.");
-            lastResponse.set(truncate(msg));
-            assignedRole.set("Sin permisos para prefijos");
-            addHistory("Rechazado: permisos");
-            logDiag("response=permission-denied raw=\"" + sanitizeForLog(msg) + "\"");
-            notifyState("Permiso denegado por servidor");
-            return;
+            awaitingPrefixResponse = false; verificationState.set("No tienes permisos."); lastResponse.set(truncate(msg)); assignedRole.set("Sin permisos para prefijos");
+            addHistory("Rechazado: permisos"); logDiag("response=permission-denied raw=\"" + sanitizeForLog(msg) + "\""); notifyState("Permiso denegado por servidor"); return;
         }
-
         if (lower.contains("prefix") || lower.contains("prefijo")) {
-            lastResponse.set(truncate(msg));
-            addHistory("Respuesta: " + truncate(msg));
-            logDiag("response=prefix raw=\"" + sanitizeForLog(msg) + "\"");
+            lastResponse.set(truncate(msg)); addHistory("Respuesta: " + truncate(msg)); logDiag("response=prefix raw=\"" + sanitizeForLog(msg) + "\"");
             if (awaitingPrefixResponse) awaitingPrefixResponse = false;
-
             if (containsAny(lower, "selected", "set", "changed", "updated", "seleccion", "cambiado", "actualizado", "establecido")) {
-                verificationState.set("Cambio confirmado.");
-                String observed = extractPrefixToken(msg);
-                if (!observed.isBlank()) {
-                    currentPrefix.set(observed + " (confirmado por servidor)");
-                    assignedRole.set("Prefijo activo: " + observed);
-                }
-                addHistory("Cambio confirmado por servidor");
-                logDiag("result=confirmed prefix=" + observed);
-                notifyState("Prefijo confirmado por servidor");
+                verificationState.set("Cambio confirmado."); String observed = extractPrefixToken(msg);
+                if (!observed.isBlank()) { currentPrefix.set(observed + " (confirmado por servidor)"); assignedRole.set("Prefijo activo: " + observed); rememberObservedPrefix(observed); }
+                addHistory("Cambio confirmado por servidor"); logDiag("result=confirmed prefix=" + observed); notifyState("Prefijo confirmado por servidor");
             } else if (containsAny(lower, "available", "options", "select", "choose", "opciones", "elige", "selecciona", "[")) {
-                verificationState.set("Detectado");
-                availableOptions.set(truncate(msg));
-                String observed = extractPrefixToken(msg);
-                if (!observed.isBlank()) currentPrefix.set(observed + " (observado)");
+                verificationState.set("Detectado"); availableOptions.set(formatObservedOptions(msg));
+                String observed = extractPrefixToken(msg); if (!observed.isBlank()) { currentPrefix.set(observed + " (observado)"); rememberObservedPrefix(observed); }
                 logDiag("result=options-observed");
             } else if (containsAny(lower, "denied", "rejected", "can't", "cannot", "invalid", "rechaz", "inválid", "invalido")) {
-                verificationState.set("Operación rechazada.");
-                logDiag("result=rejected");
-                notifyState("Operación rechazada por servidor");
-            } else {
-                verificationState.set("Detectado");
-                logDiag("result=detected");
-            }
+                verificationState.set("Operación rechazada."); logDiag("result=rejected"); notifyState("Operación rechazada por servidor");
+            } else { verificationState.set("Detectado"); logDiag("result=detected"); }
         }
-
         if (selfMentioned(msg)) {
             String observed = extractPrefixToken(msg);
-            if (!observed.isBlank() && (lower.contains("prefix") || lower.contains("[") || awaitingPrefixResponse)) {
-                currentPrefix.set(observed + " (observado)");
+            if (!observed.isBlank() && (lower.contains("prefix") || lower.contains("[") || awaitingPrefixResponse)) { currentPrefix.set(observed + " (observado)"); rememberObservedPrefix(observed); }
+        }
+    }
+
+    private void captureObservedPrefixes(String msg) {
+        if (msg == null || msg.isBlank()) return;
+        Matcher matcher = PREFIX_PATTERN.matcher(msg);
+        boolean changed = false;
+        while (matcher.find()) {
+            String inner = matcher.group(1); if (inner == null) continue;
+            String clean = sanitizeRequestedPrefix(inner); if (clean.isBlank()) continue;
+            String lower = clean.toLowerCase(Locale.ROOT);
+            if (lower.contains("apex") || lower.contains("elite") || lower.contains("legend") || lower.contains("prime") || lower.contains("default") || lower.contains("owner") || lower.contains("member")) {
+                changed |= observedPrefixOptions.add(lower);
             }
         }
+        if (changed) availableOptions.set(formatObservedOptions(msg));
+    }
+
+    private void rememberObservedPrefix(String token) {
+        String clean = sanitizeRequestedPrefix(token.replace("[", "").replace("]", ""));
+        if (clean.isBlank()) return;
+        observedPrefixOptions.add(clean.toLowerCase(Locale.ROOT));
+        availableOptions.set(formatObservedOptions(null));
+    }
+
+    private String formatObservedOptions(String fallbackMsg) {
+        if (!observedPrefixOptions.isEmpty()) {
+            StringBuilder sb = new StringBuilder(); int i = 0;
+            for (String opt : observedPrefixOptions) { if (i > 0) sb.append(", "); sb.append(opt); i++; if (i >= 12) break; }
+            if (observedPrefixOptions.size() > 12) sb.append(", ...");
+            return sb.toString();
+        }
+        return fallbackMsg != null ? truncate(fallbackMsg) : "Sin datos del servidor";
+    }
+
+    private String sanitizeRequestedPrefix(String raw) {
+        if (raw == null) return "";
+        String v = raw.trim().replace("[", "").replace("]", "");
+        v = WHITESPACE_PATTERN.matcher(v).replaceAll("");
+        if (v.length() > 24) v = v.substring(0, 24);
+        if (!v.matches("[A-Za-z0-9_+\\-]{1,24}")) return "";
+        return v;
     }
 
     private boolean selfMentioned(String msg) {
@@ -443,8 +428,7 @@ public class RangosChangeModule extends Module {
 
     private boolean containsRankToken(String text, String token) {
         if (text == null || token == null) return false;
-        String t = token.toLowerCase(Locale.ROOT);
-        String s = text.toLowerCase(Locale.ROOT);
+        String t = token.toLowerCase(Locale.ROOT); String s = text.toLowerCase(Locale.ROOT);
         return s.contains("[" + t + "]") || s.contains(" " + t + " ") || s.startsWith(t + " ") || s.endsWith(" " + t) || s.contains(t + " rank") || s.contains("rank " + t);
     }
 
@@ -452,12 +436,9 @@ public class RangosChangeModule extends Module {
         if (msg == null || msg.isBlank()) return "";
         Matcher matcher = PREFIX_PATTERN.matcher(msg);
         while (matcher.find()) {
-            String inner = matcher.group(1);
-            if (inner == null) continue;
+            String inner = matcher.group(1); if (inner == null) continue;
             String lower = inner.toLowerCase(Locale.ROOT);
-            if (lower.contains("apex") || lower.contains("elite") || lower.contains("legend") || lower.contains("prime") || lower.contains("default") || lower.contains("owner")) {
-                return "[" + inner + "]";
-            }
+            if (lower.contains("apex") || lower.contains("elite") || lower.contains("legend") || lower.contains("prime") || lower.contains("default") || lower.contains("owner") || lower.contains("member")) return "[" + inner + "]";
         }
         return "";
     }
@@ -465,172 +446,48 @@ public class RangosChangeModule extends Module {
     private void updateConnectionStatus() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.getCurrentServer() == null) {
-            if (!lastServerHost.isEmpty()) {
-                lastServerHost = "";
-                clearTransientOnDisconnect();
-            }
-            connectionStatus.set("Desconectado");
-            return;
+            if (!lastServerHost.isEmpty()) { lastServerHost = ""; clearTransientOnDisconnect(); }
+            connectionStatus.set("Desconectado"); return;
         }
-
         String host = getCurrentServerHost();
-        if (!Objects.equals(host, lastServerHost)) {
-            lastServerHost = host;
-            clearTransientOnDisconnect();
-            addHistory("Conectado: " + host);
-            notifyState("Conectado a " + host);
-        }
-
+        if (!Objects.equals(host, lastServerHost)) { lastServerHost = host; clearTransientOnDisconnect(); addHistory("Conectado: " + host); notifyState("Conectado a " + host); }
         if (is6b6tHost(host)) connectionStatus.set("Conectado a 6b6t (" + host + ")");
         else connectionStatus.set("Conectado a otro servidor (" + host + ") - /prefix 6b6t no automático");
     }
 
     private void clearTransientOnDisconnect() {
-        awaitingPrefixResponse = false;
-        verificationState.set("No se pudo verificar");
-        lastResponse.set("Sin respuesta");
-        availableOptions.set("Sin datos del servidor");
-        currentPrefix.set("No se pudo verificar");
-        detectedRank.set("No se pudo verificar");
-        assignedRole.set("Ninguno");
-        lastCommand.set("Ninguno");
-        nearbyRoleCache.clear();
-        cachedPlayers.set("Sin datos");
-        history.clear();
-        refreshHistorySettings();
+        awaitingPrefixResponse = false; verificationState.set("No se pudo verificar"); lastResponse.set("Sin respuesta"); availableOptions.set("Sin datos del servidor");
+        currentPrefix.set("No se pudo verificar"); detectedRank.set("No se pudo verificar"); assignedRole.set("Ninguno"); lastCommand.set("Ninguno");
+        observedPrefixOptions.clear(); nearbyRoleCache.clear(); cachedPlayers.set("Sin datos"); history.clear(); refreshHistorySettings();
     }
 
     private void clearLocalState(String reason) {
-        awaitingPrefixResponse = false;
-        detectedRank.set("No se pudo verificar");
-        currentPrefix.set("No se pudo verificar");
-        assignedRole.set("Ninguno");
-        lastCommand.set("Ninguno");
-        lastResponse.set(reason == null ? "Estado local limpiado" : reason);
-        verificationState.set("No se pudo verificar");
-        availableOptions.set("Sin datos del servidor");
-        nearbyRoleCache.clear();
-        cachedPlayers.set("Sin datos");
-        history.clear();
-        addHistory(reason == null ? "Estado local limpiado" : reason);
-        notifyState("Estado local limpiado");
+        awaitingPrefixResponse = false; detectedRank.set("No se pudo verificar"); currentPrefix.set("No se pudo verificar"); assignedRole.set("Ninguno"); lastCommand.set("Ninguno");
+        lastResponse.set(reason == null ? "Estado local limpiado" : reason); verificationState.set("No se pudo verificar"); availableOptions.set("Sin datos del servidor");
+        observedPrefixOptions.clear(); nearbyRoleCache.clear(); cachedPlayers.set("Sin datos"); history.clear(); addHistory(reason == null ? "Estado local limpiado" : reason); notifyState("Estado local limpiado");
     }
 
     private void addHistory(String entry) {
-        String e = truncate(entry);
-        if (e.isBlank()) return;
-        history.addFirst(e);
-        while (history.size() > MAX_HISTORY) history.removeLast();
-        refreshHistorySettings();
+        String e = truncate(entry); if (e.isBlank()) return;
+        history.addFirst(e); while (history.size() > MAX_HISTORY) history.removeLast(); refreshHistorySettings();
     }
 
     private void refreshHistorySettings() {
         List<String> list = new ArrayList<>(history);
-        history1.set(getHist(list, 0));
-        history2.set(getHist(list, 1));
-        history3.set(getHist(list, 2));
-        history4.set(getHist(list, 3));
-        history5.set(getHist(list, 4));
+        history1.set(getHist(list, 0)); history2.set(getHist(list, 1)); history3.set(getHist(list, 2)); history4.set(getHist(list, 3)); history5.set(getHist(list, 4));
     }
 
-    private static String getHist(List<String> list, int idx) {
-        if (list == null || idx < 0 || idx >= list.size()) return "-";
-        String v = list.get(idx);
-        return v == null || v.isBlank() ? "-" : v;
-    }
-
-    private boolean isRelevantCommand(String cmd) {
-        if (cmd == null) return false;
-        String c = cmd.toLowerCase(Locale.ROOT).trim();
-        return c.startsWith("/prefix") || c.startsWith("/skin") || c.startsWith("/rank") || c.startsWith("/ranks")
-            || c.startsWith("/chatcolor") || c.startsWith("/namecolor") || c.contains("prefix");
-    }
-
-    private static String normalizeCommand(String raw) {
-        if (raw == null) return "";
-        String c = raw.trim();
-        if (c.isEmpty()) return "";
-        return c.startsWith("/") ? c : "/" + c;
-    }
-
-    private static boolean containsAny(String lower, String... needles) {
-        if (lower == null || needles == null) return false;
-        for (String n : needles) {
-            if (n != null && lower.contains(n.toLowerCase(Locale.ROOT))) return true;
-        }
-        return false;
-    }
-
-    private String getCurrentServerHost() {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.getCurrentServer() == null || mc.getCurrentServer().ip == null) return "";
-        return mc.getCurrentServer().ip.toLowerCase(Locale.ROOT).trim();
-    }
-
-    private boolean is6b6tHost(String host) {
-        if (host == null || host.isBlank()) return false;
-        String h = host.toLowerCase(Locale.ROOT).trim();
-        int colon = h.indexOf(':');
-        if (colon >= 0) h = h.substring(0, colon);
-        if (SIXB6T_HOSTS.contains(h)) return true;
-        for (String d : SIXB6T_HOSTS) if (h.endsWith("." + d)) return true;
-        return h.contains("6b6t");
-    }
-
-    private static String truncate(String s) {
-        return truncate(s, 140);
-    }
-
-    private static String truncate(String s, int max) {
-        if (s == null) return "";
-        String v = WHITESPACE_PATTERN.matcher(s.trim()).replaceAll(" ");
-        if (max < 4) max = 4;
-        return v.length() > max ? v.substring(0, max - 3) + "..." : v;
-    }
-
-    private static String sanitizeForLog(String s) {
-        return truncate(s, 120).replace("\"", "'");
-    }
-
-    private void resetBool(Setting<Boolean> setting) {
-        if (setting == null || resetting) return;
-        resetting = true;
-        try {
-            setting.set(false);
-        } finally {
-            resetting = false;
-        }
-    }
-
-    private void notifyState(String msg) {
-        if (!notifyOnChange.get() || msg == null || msg.isBlank()) return;
-        if (msg.equals(lastNotifiedState)) return;
-        lastNotifiedState = msg;
-        info(msg);
-        if (notifySound.get()) {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc != null) {
-                mc.execute(() -> {
-                    if (mc.player != null) {
-                        mc.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.7f, 1.2f);
-                    }
-                });
-            }
-        }
-    }
-
-    private void logDiag(String msg) {
-        if (msg == null) return;
-        LOG.info("[RangosChange][diag] {}", msg);
-    }
-
-    private void info(String msg) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null || msg == null) return;
-        String safe = truncate(msg, 180);
-        mc.execute(() -> {
-            if (mc.player != null) mc.player.displayClientMessage(Component.literal("[RangosChange] " + safe), false);
-            LOG.info("[RangosChange] {}", safe);
-        });
-    }
+    private static String getHist(List<String> list, int idx) { if (list == null || idx < 0 || idx >= list.size()) return "-"; String v = list.get(idx); return v == null || v.isBlank() ? "-" : v; }
+    private boolean isRelevantCommand(String cmd) { if (cmd == null) return false; String c = cmd.toLowerCase(Locale.ROOT).trim(); return c.startsWith("/prefix") || c.startsWith("/skin") || c.startsWith("/rank") || c.startsWith("/ranks") || c.startsWith("/chatcolor") || c.startsWith("/namecolor") || c.contains("prefix"); }
+    private static String normalizeCommand(String raw) { if (raw == null) return ""; String c = raw.trim(); if (c.isEmpty()) return ""; return c.startsWith("/") ? c : "/" + c; }
+    private static boolean containsAny(String lower, String... needles) { if (lower == null || needles == null) return false; for (String n : needles) { if (n != null && lower.contains(n.toLowerCase(Locale.ROOT))) return true; } return false; }
+    private String getCurrentServerHost() { Minecraft mc = Minecraft.getInstance(); if (mc == null || mc.getCurrentServer() == null || mc.getCurrentServer().ip == null) return ""; return mc.getCurrentServer().ip.toLowerCase(Locale.ROOT).trim(); }
+    private boolean is6b6tHost(String host) { if (host == null || host.isBlank()) return false; String h = host.toLowerCase(Locale.ROOT).trim(); int colon = h.indexOf(':'); if (colon >= 0) h = h.substring(0, colon); if (SIXB6T_HOSTS.contains(h)) return true; for (String d : SIXB6T_HOSTS) if (h.endsWith("." + d)) return true; return h.contains("6b6t"); }
+    private static String truncate(String s) { return truncate(s, 140); }
+    private static String truncate(String s, int max) { if (s == null) return ""; String v = WHITESPACE_PATTERN.matcher(s.trim()).replaceAll(" "); if (max < 4) max = 4; return v.length() > max ? v.substring(0, max - 3) + "..." : v; }
+    private static String sanitizeForLog(String s) { return truncate(s, 120).replace("\"", "'"); }
+    private void resetBool(Setting<Boolean> setting) { if (setting == null || resetting) return; resetting = true; try { setting.set(false); } finally { resetting = false; } }
+    private void notifyState(String msg) { if (!notifyOnChange.get() || msg == null || msg.isBlank()) return; if (msg.equals(lastNotifiedState)) return; lastNotifiedState = msg; info(msg); if (notifySound.get()) { Minecraft mc = Minecraft.getInstance(); if (mc != null) mc.execute(() -> { if (mc.player != null) mc.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.7f, 1.2f); }); } }
+    private void logDiag(String msg) { if (msg == null) return; LOG.info("[RangosChange][diag] {}", msg); }
+    private void info(String msg) { Minecraft mc = Minecraft.getInstance(); if (mc == null || msg == null) return; String safe = truncate(msg, 180); mc.execute(() -> { if (mc.player != null) mc.player.displayClientMessage(Component.literal("[RangosChange] " + safe), false); LOG.info("[RangosChange] {}", safe); }); }
 }
