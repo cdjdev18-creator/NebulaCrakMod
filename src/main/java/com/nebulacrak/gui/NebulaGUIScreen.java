@@ -18,6 +18,9 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import com.nebulacrak.gui.hudmc.HudmcManager;
+import com.nebulacrak.gui.hudmc.HudmcPanelRenderer;
+import com.nebulacrak.gui.hudmc.HudmcPanelState;
 import org.lwjgl.glfw.GLFW;
 
 import java.awt.Desktop;
@@ -37,6 +40,18 @@ public class NebulaGUIScreen extends Screen {
     private final Map<String, Boolean> categoryExpandedStates = new HashMap<>();
     private String draggingPanelId = null;
     private int dragOffX, dragOffY;
+
+    // HUDMC
+    private final HudmcManager hudmcManager = new HudmcManager();
+    private final HudmcPanelRenderer hudmcRenderer = new HudmcPanelRenderer();
+    private HudmcPanelState hudmcDragging;
+    private HudmcPanelState hudmcResizing;
+    private int hudmcDragOffX, hudmcDragOffY;
+    private int hudmcResizeStartW, hudmcResizeStartH, hudmcResizeStartMouseX, hudmcResizeStartMouseY;
+    private boolean hudmcContextOpen;
+    private int hudmcContextX, hudmcContextY;
+    private HudmcPanelState hudmcConfigPanel;
+    private String hudmcFocusedChatPanelId;
 
     private final List<AbstractWidget> navButtons = new ArrayList<>();
     private final List<AbstractWidget> contentButtons = new ArrayList<>();
@@ -125,6 +140,7 @@ public class NebulaGUIScreen extends Screen {
         navButtons.add(languageButton);
         addRenderableWidget(languageButton);
 
+        loadHudmcFromConfig();
         rebuild();
     }
 
@@ -342,18 +358,289 @@ public class NebulaGUIScreen extends Screen {
     }
 
     private int renderHUD(int left, int y, int width) {
-        List<AbstractWidget> bucket = new ArrayList<>();
-        HUDScreen.build(this, left, y, width, bucket, this::rebuild);
-        for (AbstractWidget btn : bucket) addContent(btn);
-        if (!bucket.isEmpty()) {
-            int maxBottom = y;
-            for (AbstractWidget b : bucket) maxBottom = Math.max(maxBottom, b.getY() + b.getHeight());
-            return maxBottom + 4;
+        hudmcManager.ensureDefault(this.width, this.height);
+        syncHudmcToConfig();
+        if (hudmcConfigPanel != null && !hudmcManager.panels().contains(hudmcConfigPanel)) hudmcConfigPanel = null;
+        if (hudmcConfigPanel != null) {
+            y = renderHudmcConfigPanel(left, y, width, hudmcConfigPanel);
+        } else {
+            CompactButton info = new CompactButton(left, y, width, 18,
+                    Component.literal("HUDMC: click derecho en espacio vacío para abrir menú contextual."),
+                    b -> {}, CompactButton.Type.LABEL);
+            info.active = false;
+            addContent(info);
+            y += 22;
+            CompactButton create = new CompactButton(left, y, Math.min(160, width), 20,
+                    Component.literal("+ Nuevo panel"),
+                    b -> { hudmcManager.createPanel(this.width, this.height); syncHudmcToConfig(); rebuild(); },
+                    CompactButton.Type.SETTINGS);
+            addContent(create);
+            y += 26;
         }
         return y;
     }
 
+    private int renderHudmcConfigPanel(int left, int y, int width, HudmcPanelState p) {
+        CompactButton back = new CompactButton(left, y, 90, 20, Component.literal("< Volver"), b -> { hudmcConfigPanel = null; rebuild(); }, CompactButton.Type.SETTINGS);
+        addContent(back);
+        y += 24;
+        CompactButton title = new CompactButton(left, y, width, 18, Component.literal("Configurar paneles - " + p.name), b -> {}, CompactButton.Type.MASTER_HEADER);
+        title.active = false;
+        addContent(title);
+        y += 22;
+        String[] labels = {"Chat", "Miembros", "Configuración"};
+        HudmcPanelState.TabType[] tabs = HudmcPanelState.TabType.values();
+        for (int i = 0; i < tabs.length; i++) {
+            HudmcPanelState.TabType t = tabs[i];
+            boolean sel = p.activeTab == t;
+            CompactButton tb = new CompactButton(left + 4, y, width - 8, 18,
+                    Component.literal((sel ? "[x] " : "[ ] ") + "Tab: " + labels[i]),
+                    b -> { p.activeTab = t; syncHudmcToConfig(); rebuild(); },
+                    sel ? CompactButton.Type.SELECTED : CompactButton.Type.SETTINGS);
+            addContent(tb);
+            y += 20;
+        }
+        y += 4;
+        CompactButton min = new CompactButton(left + 4, y, width - 8, 20,
+                Component.literal(p.minimized ? "Restaurar panel" : "Minimizar panel"),
+                b -> { hudmcRenderer.toggleMinimize(p, this.width, this.height); syncHudmcToConfig(); rebuild(); },
+                CompactButton.Type.SETTINGS);
+        addContent(min);
+        y += 22;
+        CompactButton max = new CompactButton(left + 4, y, width - 8, 20,
+                Component.literal(p.maximized ? "Restaurar tamaño" : "Maximizar panel"),
+                b -> { hudmcRenderer.toggleMaximize(p, this.width, this.height); syncHudmcToConfig(); rebuild(); },
+                CompactButton.Type.SETTINGS);
+        addContent(max);
+        y += 22;
+        CompactButton close = new CompactButton(left + 4, y, width - 8, 20,
+                Component.literal("Cerrar panel"),
+                b -> { p.closed = true; hudmcConfigPanel = null; syncHudmcToConfig(); rebuild(); },
+                CompactButton.Type.DANGER);
+        addContent(close);
+        y += 24;
+        return y;
+    }
 
+    private void syncHudmcToConfig() {
+        try {
+            com.google.gson.JsonObject root = new com.google.gson.JsonObject();
+            hudmcManager.save(root);
+            NebulaConfig.hudmcPanelsJson = root.get("hudmcPanels").toString();
+            NebulaConfig.save();
+        } catch (Exception ignored) {}
+    }
+
+    private void loadHudmcFromConfig() {
+        try {
+            com.google.gson.JsonArray arr = com.google.gson.JsonParser.parseString(
+                    NebulaConfig.hudmcPanelsJson == null || NebulaConfig.hudmcPanelsJson.isBlank() ? "[]" : NebulaConfig.hudmcPanelsJson
+            ).getAsJsonArray();
+            com.google.gson.JsonObject root = new com.google.gson.JsonObject();
+            root.add("hudmcPanels", arr);
+            hudmcManager.load(root, this.width, this.height);
+        } catch (Exception ignored) {
+            hudmcManager.ensureDefault(this.width, this.height);
+        }
+        hudmcManager.validate(this.width, this.height);
+    }
+
+    private void renderHudmcPanels(GuiGraphics g, int mouseX, int mouseY) {
+        if (currentTab != Tab.HUD) return;
+        List<HudmcPanelState> visible = hudmcManager.panels();
+        for (HudmcPanelState p : visible) {
+            if (p.closed) continue;
+            boolean active = !visible.isEmpty() && visible.get(visible.size() - 1) == p;
+            // find last non-closed
+        }
+        HudmcPanelState last = null;
+        for (HudmcPanelState p : visible) if (!p.closed) last = p;
+        for (HudmcPanelState p : visible) {
+            if (p.closed) continue;
+            hudmcRenderer.renderPanel(g, p, p == last, mouseX, mouseY);
+        }
+        if (hudmcContextOpen) renderHudmcContextMenu(g, mouseX, mouseY);
+    }
+
+    private List<String> hudmcContextItems() {
+        List<String> items = new ArrayList<>();
+        items.add("+ Nuevo panel");
+        for (HudmcPanelState p : hudmcManager.allPanelsSorted()) items.add((p.closed ? "[C] " : "") + p.name);
+        items.add("Configurar paneles");
+        return items;
+    }
+
+    private void renderHudmcContextMenu(GuiGraphics g, int mouseX, int mouseY) {
+        List<String> items = hudmcContextItems();
+        int w = 170;
+        int itemH = 16;
+        int h = items.size() * itemH + 4;
+        int x = clamp(hudmcContextX, 4, Math.max(4, this.width - w - 4));
+        int yPos = clamp(hudmcContextY, topBarH() + 2, Math.max(topBarH() + 2, this.height - h - 4));
+        g.fill(x, yPos, x + w, yPos + h, 0xF0141822);
+        g.fill(x, yPos, x + w, yPos + 1, 0xFF8B5CF6);
+        g.fill(x, yPos + h - 1, x + w, yPos + h, 0xFF2D3342);
+        g.fill(x, yPos, x + 1, yPos + h, 0xFF2D3342);
+        g.fill(x + w - 1, yPos, x + w, yPos + h, 0xFF2D3342);
+        for (int i = 0; i < items.size(); i++) {
+            int iy = yPos + 2 + i * itemH;
+            boolean hover = mouseX >= x && mouseX < x + w && mouseY >= iy && mouseY < iy + itemH;
+            if (hover) g.fill(x + 1, iy, x + w - 1, iy + itemH, 0xFF273142);
+            g.drawString(Minecraft.getInstance().font, items.get(i), x + 8, iy + 4, hover ? 0xFFFFFFFF : 0xFFD1D5DB, false);
+        }
+    }
+
+    private boolean handleHudmcContextClick(double mx, double my) {
+        List<String> items = hudmcContextItems();
+        int w = 170;
+        int itemH = 16;
+        int h = items.size() * itemH + 4;
+        int x = clamp(hudmcContextX, 4, Math.max(4, this.width - w - 4));
+        int yPos = clamp(hudmcContextY, topBarH() + 2, Math.max(topBarH() + 2, this.height - h - 4));
+        if (mx < x || mx >= x + w || my < yPos || my >= yPos + h) { hudmcContextOpen = false; return false; }
+        int idx = (int) ((my - yPos - 2) / itemH);
+        if (idx < 0 || idx >= items.size()) { hudmcContextOpen = false; return true; }
+        String item = items.get(idx);
+        if ("+ Nuevo panel".equals(item)) {
+            HudmcPanelState p = hudmcManager.createPanel(this.width, this.height);
+            hudmcManager.bringToFront(p);
+            syncHudmcToConfig(); hudmcContextOpen = false; rebuild(); return true;
+        }
+        if ("Configurar paneles".equals(item)) {
+            List<HudmcPanelState> all = hudmcManager.allPanelsSorted();
+            hudmcConfigPanel = all.isEmpty() ? null : all.get(0);
+            hudmcContextOpen = false; rebuild(); return true;
+        }
+        for (HudmcPanelState p : hudmcManager.allPanelsSorted()) {
+            String label = (p.closed ? "[C] " : "") + p.name;
+            if (label.equals(item)) {
+                p.closed = false; hudmcManager.bringToFront(p); hudmcConfigPanel = p;
+                syncHudmcToConfig(); hudmcContextOpen = false; rebuild(); return true;
+            }
+        }
+        hudmcContextOpen = false; return true;
+    }
+
+    private boolean handleHudmcMouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (currentTab != Tab.HUD) return false;
+        double mx = event.x(), my = event.y();
+        if (hudmcContextOpen) {
+            if (handleHudmcContextClick(mx, my)) return true;
+            hudmcContextOpen = false;
+        }
+        if (event.button() == 1) {
+            HudmcPanelState p = hudmcManager.panelAt(mx, my);
+            if (p != null) { hudmcManager.bringToFront(p); syncHudmcToConfig(); rebuild(); return true; }
+            if (my >= topBarH() && my < this.height) {
+                hudmcContextOpen = true; hudmcContextX = (int) mx; hudmcContextY = (int) my; return true;
+            }
+            return false;
+        }
+        if (event.button() != 0) return false;
+        for (int i = hudmcManager.panels().size() - 1; i >= 0; i--) {
+            HudmcPanelState p = hudmcManager.panels().get(i);
+            if (p.closed) continue;
+            int h = p.minimized ? HudmcPanelRenderer.HEADER_H : p.height;
+            if (mx < p.x || mx > p.x + p.width || my < p.y || my > p.y + h) continue;
+            hudmcManager.bringToFront(p);
+            if (hudmcRenderer.mouseClicked(p, event, hudmcActions(), this.width, this.height)) return true;
+            if (hudmcRenderer.isResizeHit(p, mx, my)) {
+                hudmcResizing = p;
+                hudmcResizeStartW = p.width; hudmcResizeStartH = p.height;
+                hudmcResizeStartMouseX = (int) mx; hudmcResizeStartMouseY = (int) my;
+                return true;
+            }
+            if (hudmcRenderer.isHeaderHit(p, mx, my)) {
+                hudmcDragging = p; hudmcDragOffX = (int) mx - p.x; hudmcDragOffY = (int) my - p.y;
+                return true;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private boolean handleHudmcChatKey(KeyEvent event) {
+        if (hudmcFocusedChatPanelId == null) return false;
+        HudmcPanelState panel = null;
+        for (HudmcPanelState p : hudmcManager.panels()) if (p.id.equals(hudmcFocusedChatPanelId) && !p.closed) { panel = p; break; }
+        if (panel == null || panel.activeTab != HudmcPanelState.TabType.CHAT || panel.minimized) return false;
+        int key = event.key();
+        String draft = panel.chatDraft == null ? "" : panel.chatDraft;
+        if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+            hudmcActions().sendChat(panel);
+            return true;
+        }
+        if (key == GLFW.GLFW_KEY_BACKSPACE) {
+            if (!draft.isEmpty()) { panel.chatDraft = draft.substring(0, draft.length() - 1); syncHudmcToConfig(); rebuild(); }
+            return true;
+        }
+        if (key == GLFW.GLFW_KEY_ESCAPE) {
+            hudmcFocusedChatPanelId = null;
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean charTyped(net.minecraft.client.input.CharacterEvent event) {
+        if (currentTab == Tab.HUD && hudmcFocusedChatPanelId != null) {
+            HudmcPanelState panel = null;
+            for (HudmcPanelState p : hudmcManager.panels()) if (p.id.equals(hudmcFocusedChatPanelId) && !p.closed) { panel = p; break; }
+            if (panel != null && panel.activeTab == HudmcPanelState.TabType.CHAT && !panel.minimized) {
+                int cp = event.codepoint();
+                if (cp >= 32 && cp != 127) {
+                    String draft = panel.chatDraft == null ? "" : panel.chatDraft;
+                    if (draft.length() < 500) {
+                        panel.chatDraft = draft + new String(Character.toChars(cp));
+                        syncHudmcToConfig();
+                        rebuild();
+                    }
+                    return true;
+                }
+            }
+        }
+        return super.charTyped(event);
+    }
+
+    private HudmcPanelRenderer.Actions hudmcActions() {
+        return new HudmcPanelRenderer.Actions() {
+            @Override public void rebuild() { NebulaGUIScreen.this.rebuild(); }
+            @Override public void save() { syncHudmcToConfig(); }
+            @Override public void bringToFront(HudmcPanelState panel) { hudmcManager.bringToFront(panel); }
+            @Override public void openContextMenu(int x, int y) { hudmcContextOpen = true; hudmcContextX = x; hudmcContextY = y; }
+            @Override public void openConfig(HudmcPanelState panel) { hudmcConfigPanel = panel; rebuild(); }
+            @Override public void closePanel(HudmcPanelState panel) { panel.closed = true; if (hudmcConfigPanel == panel) hudmcConfigPanel = null; }
+            @Override public void loginDiscord(HudmcPanelState panel) {
+                hudmcFocusedChatPanelId = panel.id;
+                var mod = com.nebulacrak.modules.DiscordConnectModule.INSTANCE;
+                if (mod != null) mod.triggerLogin();
+                syncHudmcToConfig(); rebuild();
+            }
+            @Override public void logoutDiscord(HudmcPanelState panel) {
+                var mod = com.nebulacrak.modules.DiscordConnectModule.INSTANCE;
+                if (mod != null) mod.triggerLogout();
+                syncHudmcToConfig(); rebuild();
+            }
+            @Override public void sendChat(HudmcPanelState panel) {
+                var mod = com.nebulacrak.modules.DiscordConnectModule.INSTANCE;
+                if (mod != null) {
+                    mod.setChannel(panel.chatChannel == null ? "#general" : panel.chatChannel);
+                    mod.setMessageDraft(panel.chatDraft == null ? "" : panel.chatDraft);
+                    mod.triggerSend();
+                    panel.chatDraft = "";
+                }
+                syncHudmcToConfig(); rebuild();
+            }
+            @Override public void setChatChannel(HudmcPanelState panel, String channel) {
+                panel.chatChannel = channel == null ? "#general" : channel;
+                hudmcFocusedChatPanelId = panel.id;
+                var mod = com.nebulacrak.modules.DiscordConnectModule.INSTANCE;
+                if (mod != null) mod.setChannel(panel.chatChannel);
+                com.nebulacrak.discord.NebulaDiscordSession.get().setCurrentChannel(panel.chatChannel);
+                syncHudmcToConfig(); rebuild();
+            }
+        };
+    }
     private int renderEditMC(int left, int y, int width) {
         NebulaConfig.BackgroundMode[] std = {NebulaConfig.BackgroundMode.ORIGINAL, NebulaConfig.BackgroundMode.COLOR, NebulaConfig.BackgroundMode.TRANSPARENT, NebulaConfig.BackgroundMode.IMAGE};
         String[] stdLabels = {
@@ -822,6 +1109,11 @@ public class NebulaGUIScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         double mx = event.x(), my = event.y();
+        if (handleHudmcMouseClicked(event, doubleClick)) return true;
+        if (currentTab == Tab.HUD && event.button() == 0) {
+            HudmcPanelState p = hudmcManager.panelAt(mx, my);
+            if (p != null && p.activeTab == HudmcPanelState.TabType.CHAT) hudmcFocusedChatPanelId = p.id;
+        }
         if (languageDropdownOpen) {
             int dropW = (NebulaConfig.uiStyle == NebulaConfig.UIStyle.EDICION ? 62 : 72), dropX = this.width - dropW - 8, dropY = topBarH() - 2, itemH = (NebulaConfig.uiStyle == NebulaConfig.UIStyle.EDICION ? 16 : 18);
             if (mx >= dropX && mx <= dropX + dropW) {
@@ -847,28 +1139,40 @@ public class NebulaGUIScreen extends Screen {
         return super.mouseClicked(event, doubleClick);
     }
 
+
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+        if (hudmcResizing != null && event.button() == 0) {
+            HudmcPanelState p = hudmcResizing;
+            p.maximized = false; p.minimized = false;
+            p.width = clamp(hudmcResizeStartW + ((int) event.x() - hudmcResizeStartMouseX), 220, Math.max(220, this.width - p.x - 8));
+            p.height = clamp(hudmcResizeStartH + ((int) event.y() - hudmcResizeStartMouseY), 120, Math.max(120, this.height - p.y - 8));
+            p.captureRestore(); p.clampToScreen(this.width, this.height); syncHudmcToConfig(); rebuild(); return true;
+        }
+        if (hudmcDragging != null && event.button() == 0) {
+            HudmcPanelState p = hudmcDragging;
+            if (p.maximized) hudmcRenderer.restore(p, this.width, this.height);
+            int h = p.minimized ? HudmcPanelRenderer.HEADER_H : p.height;
+            p.x = clamp((int) event.x() - hudmcDragOffX, 4, Math.max(4, this.width - p.width - 4));
+            p.y = clamp((int) event.y() - hudmcDragOffY, topBarH() + 2, Math.max(topBarH() + 2, this.height - h - 4));
+            p.captureRestore(); syncHudmcToConfig(); rebuild(); return true;
+        }
         if (draggingPanelId != null && event.button() == 0) {
             int pw = panelW();
             int ph = panelH(draggingPanelId);
             int nx = clamp((int) event.x() - dragOffX, 4, Math.max(4, this.width - pw - 4));
             int ny = clamp((int) event.y() - dragOffY, topBarH() + 2, Math.max(topBarH() + 2, this.height - ph - 4));
             NebulaConfig.dropdownPositions.put(draggingPanelId, new int[]{nx, ny});
-            NebulaConfig.save();
-            rebuild();
-            return true;
+            NebulaConfig.save(); rebuild(); return true;
         }
         return super.mouseDragged(event, deltaX, deltaY);
     }
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (draggingPanelId != null && event.button() == 0) {
-            draggingPanelId = null;
-            NebulaConfig.save();
-            return true;
-        }
+        if (hudmcResizing != null && event.button() == 0) { hudmcResizing.captureRestore(); hudmcResizing = null; syncHudmcToConfig(); rebuild(); return true; }
+        if (hudmcDragging != null && event.button() == 0) { hudmcDragging.captureRestore(); hudmcDragging = null; syncHudmcToConfig(); return true; }
+        if (draggingPanelId != null && event.button() == 0) { draggingPanelId = null; NebulaConfig.save(); return true; }
         return super.mouseReleased(event);
     }
 
@@ -901,6 +1205,7 @@ public class NebulaGUIScreen extends Screen {
             onClose();
             return true;
         }
+        if (currentTab == Tab.HUD && handleHudmcChatKey(event)) return true;
         if (key == NebulaConfig.openKeyCode && NebulaConfig.closeWithOpenKey) {
             onClose();
             return true;
@@ -923,6 +1228,7 @@ public class NebulaGUIScreen extends Screen {
         }
         renderTopBar(g);
 
+        renderHudmcPanels(g, mouseX, mouseY);
         super.render(g, mouseX, mouseY, pt);
 
         renderTooltip(g, mouseX, mouseY);

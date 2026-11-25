@@ -45,6 +45,9 @@ public class NebulaConfig {
     public static final Map<String, int[]> dropdownPositions = new HashMap<>();
     public static final Map<String, Boolean> dropdownExpanded = new HashMap<>();
 
+    // -- HUDMC floating panels --
+    public static String hudmcPanelsJson = "[]";
+
     // -- Per-screen backgrounds (EDIT,MC) --
     public static BackgroundMode mainMenuBackgroundMode = BackgroundMode.ORIGINAL;
     public static int mainMenuBackgroundColor = 0xFF121218;
@@ -168,6 +171,11 @@ public class NebulaConfig {
                 }
             }
 
+            hudmcPanelsJson = "[]";
+            if (root.has("hudmcPanels") && root.get("hudmcPanels").isJsonArray()) {
+                hudmcPanelsJson = root.getAsJsonArray("hudmcPanels").toString();
+            }
+
             validateImages();
         } catch (Exception ignored) {
         }
@@ -267,6 +275,12 @@ public class NebulaConfig {
             JsonObject de = new JsonObject();
             for (Map.Entry<String, Boolean> e : dropdownExpanded.entrySet()) de.addProperty(e.getKey(), e.getValue());
             root.add("dropdownExpanded", de);
+
+            try {
+                root.add("hudmcPanels", JsonParser.parseString(hudmcPanelsJson == null || hudmcPanelsJson.isBlank() ? "[]" : hudmcPanelsJson));
+            } catch (Exception ignored) {
+                root.add("hudmcPanels", new JsonArray());
+            }
 
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             Files.writeString(CONFIG_FILE, gson.toJson(root), StandardCharsets.UTF_8);
