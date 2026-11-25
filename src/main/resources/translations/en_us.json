@@ -128,5 +128,9 @@
   "gui.nebula.edit_mc.connecting.title": "Connecting / Joining Server",
   "gui.nebula.edit_mc.connecting.desc": "Connecting and joining multiplayer server screens.",
   "gui.nebula.edit_mc.disconnected.title": "Disconnected",
-  "gui.nebula.edit_mc.disconnected.desc": "Server disconnected screen background."
+  "gui.nebula.edit_mc.disconnected.desc": "Server disconnected screen background.",
+  "nebula.module.login-censor": "LoginCensor",
+  "nebula.module.login-censor.description": "Visually censors /login password in chat input; original command is sent unchanged.",
+  "nebula.module.stream-privacy": "StreamPrivacy",
+  "nebula.module.stream-privacy.description": "Visual privacy overlay with configurable pixelation, blur, zoom, and position."
 }

@@ -16,6 +16,7 @@ import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.entity.player.PlayerSkin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.lang.reflect.Modifier;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -56,6 +57,15 @@ public class SkinCharPlusModule extends Module {
         .name("sync-rotation-enabled").description("Durante rotación, solicita /skin para slots con nombre asociado. Requiere sync-6b6t-enabled.").defaultValue(false).visible(sync6b6tEnabled::get).build());
     private final Setting<Double> syncIntervalSeconds = sgSync.add(new DoubleSetting.Builder()
         .name("sync-interval-seconds").description("Intervalo mínimo entre solicitudes /skin (anti-spam).").defaultValue(30.0).min(10.0).max(300.0).sliderRange(10.0, 120.0).visible(sync6b6tEnabled::get).build());
+
+    private final Setting<Integer> skinCount = sgSpeed.add(new IntSetting.Builder()
+        .name("skin-count")
+        .description("Cuántas skins rotar (2-5). Usa las primeras que estén configuradas.")
+        .defaultValue(5)
+        .min(2)
+        .max(5)
+        .sliderRange(2, 5)
+        .build());
 
     private final Setting<Boolean> selectMainSkin = sgGeneral.add(new BoolSetting.Builder().name("select-main-skin").description("Abre selector PNG para skin principal.").defaultValue(false)
         .onChanged(v -> { if (v) { pickSkin(mainSkinPath, "Seleccionar skin principal", 0); resetBool("select-main-skin"); } }).build());
@@ -105,6 +115,7 @@ public class SkinCharPlusModule extends Module {
     private boolean resetting;
     private long lastSyncMs = 0L;
     private String lastSyncPlayer = "";
+    private long lastLocalReapplyMs = 0L;
 
     public SkinCharPlusModule() {
         super(NebulaModules.NEBULA_CDJ_DEV, "SkinChar+", "5 skins locales con rotación. Sync remoto 6b6t opcional vía /skin <jugador> (requiere requisitos del servidor).");
@@ -128,6 +139,16 @@ public class SkinCharPlusModule extends Module {
     private void onTick(TickEvent.Post event) {
         if (!isActive()) return;
         captureOriginalIfNeeded();
+
+        // Reaplicar skin local periódicamente: el juego puede resetear skinLookup.
+        if (lastAppliedSlot >= 0 && !lastAppliedPath.isBlank()) {
+            long now = System.currentTimeMillis();
+            if (now - lastLocalReapplyMs > 2500L) {
+                lastLocalReapplyMs = now;
+                applySlot(lastAppliedSlot, true, false);
+            }
+        }
+
         if (syncSelectedSlot.get()) {
             requestSyncForSlot(lastAppliedSlot >= 0 ? lastAppliedSlot : 0, true);
             resetBool("sync-selected-slot");
@@ -174,7 +195,8 @@ public class SkinCharPlusModule extends Module {
 
     private void buildRotation() {
         rotationSlots.clear();
-        for (int i = 0; i < 5; i++) {
+        int max = Math.max(2, Math.min(5, skinCount.get()));
+        for (int i = 0; i < 5 && rotationSlots.size() < max; i++) {
             String p = sanitizePath(pathSetting(i).get());
             if (p.isBlank()) continue;
             String err = ImageFileUtil.validateSkinPng(Path.of(p));
@@ -229,17 +251,40 @@ public class SkinCharPlusModule extends Module {
 
     private boolean applyLocalSkin(Minecraft mc, Identifier tex, PlayerModelType model) {
         try {
-            if (mc.player == null || mc.getConnection() == null) return false;
+            if (mc.player == null || mc.getConnection() == null) {
+                info("Debug: player o connection es null");
+                return false;
+            }
+
             PlayerInfo info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
-            if (info == null) return false;
-            PlayerSkin old = info.getSkin();
-            PlayerSkin custom = new PlayerSkin(new ClientAsset.ResourceTexture(tex), null, null, model, old.secure());
-            Field f = PlayerInfo.class.getDeclaredField("skinLookup");
+            if (info == null) {
+                info("Debug: PlayerInfo es null");
+                return false;
+            }
+
+            ClientAsset.ResourceTexture bodyTex;
+            try {
+                bodyTex = new ClientAsset.ResourceTexture(tex, tex);
+            } catch (Throwable t) {
+                bodyTex = new ClientAsset.ResourceTexture(tex);
+            }
+
+            PlayerSkin custom = PlayerSkin.insecure(bodyTex, null, null, model);
+
+            Field f = findSkinLookupField(info);
+            if (f == null) {
+                info("Error: no se encontró campo skinLookup en PlayerInfo.");
+                return false;
+            }
+
             f.setAccessible(true);
+            removeFinalIfPossible(f);
             f.set(info, (Supplier<PlayerSkin>) () -> custom);
+            try { info.getSkin(); } catch (Throwable ignored) {}
             return true;
         } catch (Throwable t) {
-            LOG.warn("[SkinChar+] Local skin apply failed", t);
+            LOG.error("[SkinChar+] Fallo al aplicar skin local", t);
+            info("Error exacto: " + t.getClass().getSimpleName() + " -> " + (t.getMessage() != null ? t.getMessage() : "sin mensaje"));
             return false;
         }
     }
@@ -250,14 +295,17 @@ public class SkinCharPlusModule extends Module {
         PlayerInfo info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
         if (info == null) return;
         try {
-            Field f = PlayerInfo.class.getDeclaredField("skinLookup");
+            Field f = findSkinLookupField(info);
+            if (f == null) return;
             f.setAccessible(true);
             Object val = f.get(info);
             if (!originalCaptured && val instanceof Supplier<?> s) {
                 originalSkinLookup = (Supplier<PlayerSkin>) s;
                 originalCaptured = true;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("[SkinChar+] capture original failed: {}", t.toString());
+        }
     }
 
     private void restoreOriginalSkin() {
@@ -268,8 +316,10 @@ public class SkinCharPlusModule extends Module {
                 if (mc.player == null || mc.getConnection() == null) { info("No se puede restaurar: jugador no disponible."); return; }
                 PlayerInfo info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
                 if (info == null) { info("No se puede restaurar: PlayerInfo no disponible."); return; }
-                Field f = PlayerInfo.class.getDeclaredField("skinLookup");
+                Field f = findSkinLookupField(info);
+                if (f == null) { info("No se puede restaurar: campo skinLookup no encontrado."); return; }
                 f.setAccessible(true);
+                removeFinalIfPossible(f);
                 if (originalCaptured && originalSkinLookup != null) {
                     f.set(info, originalSkinLookup);
                     lastAppliedPath = "";
@@ -281,9 +331,44 @@ public class SkinCharPlusModule extends Module {
                 }
             } catch (Throwable t) {
                 LOG.error("[SkinChar+] restore failed", t);
-                info("Error restaurando skin original.");
+                info("Error restaurando skin original: " + t.getClass().getSimpleName());
             }
         });
+    }
+
+    private static Field findSkinLookupField(PlayerInfo info) {
+        if (info == null) return null;
+        String[] names = {"skinLookup", "skinSupplier", "skin", "textureSupplier"};
+        for (String name : names) {
+            try {
+                Field f = PlayerInfo.class.getDeclaredField(name);
+                if (Supplier.class.isAssignableFrom(f.getType())) return f;
+            } catch (NoSuchFieldException ignored) {}
+        }
+        for (Field f : PlayerInfo.class.getDeclaredFields()) {
+            if (!Supplier.class.isAssignableFrom(f.getType())) continue;
+            try {
+                f.setAccessible(true);
+                Object val = f.get(info);
+                if (val instanceof Supplier<?> s) {
+                    Object got = s.get();
+                    if (got instanceof PlayerSkin) return f;
+                }
+            } catch (Throwable ignored) {}
+        }
+        for (Field f : PlayerInfo.class.getDeclaredFields()) {
+            if (Supplier.class.isAssignableFrom(f.getType())) return f;
+        }
+        return null;
+    }
+
+    private static void removeFinalIfPossible(Field f) {
+        if (f == null) return;
+        try {
+            Field modifiersField = Field.class.getDeclaredField("modifiers");
+            modifiersField.setAccessible(true);
+            modifiersField.setInt(f, f.getModifiers() & ~java.lang.reflect.Modifier.FINAL);
+        } catch (Throwable ignored) {}
     }
 
     private void requestSyncForSlot(int slot, boolean manual) {

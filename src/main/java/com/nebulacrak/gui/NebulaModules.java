@@ -1,11 +1,14 @@
 package com.nebulacrak.gui;
 
 import com.nebulacrak.language.LanguageManager;
+import com.nebulacrak.modules.ChatSendViewModule;
 import com.nebulacrak.modules.DiscordConnectModule;
+import com.nebulacrak.modules.LoginCensorModule;
 import com.nebulacrak.modules.MuteChatPlusModule;
 import com.nebulacrak.modules.PlayerRadarModule;
 import com.nebulacrak.modules.RangosChangeModule;
 import com.nebulacrak.modules.SkinCharPlusModule;
+import com.nebulacrak.modules.StreamPrivacyModule;
 import com.nebulacrak.modules.TranslatePlusModule;
 import com.nebulacrak.translation.TranslationManager;
 import meteordevelopment.meteorclient.settings.BoolSetting;
@@ -67,9 +70,12 @@ public class NebulaModules {
         CATEGORY_PLAYER.add(new SkinCharPlusModule());
         CATEGORY_CHAT.add(new ChatDetectorModule());
         CATEGORY_CHAT.add(new MuteChatPlusModule());
+        CATEGORY_CHAT.add(new LoginCensorModule());
+        CATEGORY_CHAT.add(new ChatSendViewModule());
         CATEGORY_SERVER.add(new RangosChangeModule());
         CATEGORY_MISC.add(new TranslatePlusModule());
         CATEGORY_MISC.add(new DiscordConnectModule());
+        CATEGORY_MISC.add(new StreamPrivacyModule());
     }
 
     public static final List<Module> PLAYER_MODULES = CATEGORY_PLAYER.getModules();

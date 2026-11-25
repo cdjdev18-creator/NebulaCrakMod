@@ -128,5 +128,9 @@
   "gui.nebula.edit_mc.connecting.title": "Conectando / Uniéndose al servidor",
   "gui.nebula.edit_mc.connecting.desc": "Pantallas de conexión a servidor multijugador.",
   "gui.nebula.edit_mc.disconnected.title": "Desconectado",
-  "gui.nebula.edit_mc.disconnected.desc": "Fondo de la pantalla de desconexión del servidor."
+  "gui.nebula.edit_mc.disconnected.desc": "Fondo de la pantalla de desconexión del servidor.",
+  "nebula.module.login-censor": "LoginCensor",
+  "nebula.module.login-censor.description": "Censura visualmente la contraseña de /login en el chat; el comando original se envía sin cambios.",
+  "nebula.module.stream-privacy": "StreamPrivacy",
+  "nebula.module.stream-privacy.description": "Capa visual de privacidad con pixelado, desenfoque, zoom y posiciÃ³n configurables."
 }

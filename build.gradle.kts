@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.nebulacrak"
-version = "1.0.0"
+version = "1.01_1.21.11"
 
 base {
     archivesName.set("nebulacrakmod")

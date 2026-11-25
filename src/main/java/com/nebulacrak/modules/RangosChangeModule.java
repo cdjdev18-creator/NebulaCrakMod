@@ -32,58 +32,55 @@ public class RangosChangeModule extends Module {
 
     private static final Pattern PREFIX_PATTERN = Pattern.compile("\\[([A-Za-z0-9_+\\-]{1,24})\\]");
     private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
-
-    public enum QuickAction {
-        NONE("Ninguna"),
-        OPEN_PREFIX_SELECTOR("Abrir /prefix"),
-        REFRESH_TABLIST("Escanear Tablist"),
-        CLEAR_LOCAL_STATE("Limpiar estado local");
+//Quik Action 
+    public enum RankOption {
+        NINGUNO("Ninguno", ""),
+        APEX("Apex", "Apex"),
+        LEGEND("Legend", "Legend"),
+        ELITE("Elite", "Elite"),
+        PRIME("Prime", "Prime");
 
         final String label;
-        QuickAction(String label) { this.label = label; }
+        final String value;
+        RankOption(String label, String value) { this.label = label; this.value = value; }
         @Override public String toString() { return label; }
     }
 
     private final SettingGroup sgActions = settings.getDefaultGroup();
-    private final SettingGroup sgAuto = settings.createGroup("Automatización");
-    private final SettingGroup sgStatus = settings.createGroup("Estado y Roles");
-    private final SettingGroup sgCache = settings.createGroup("Cache jugadores cercanos");
 
-    private final Setting<Boolean> consultOptions = sgActions.add(new BoolSetting.Builder()
-        .name("consultar-opciones")
-        .description("1 clic: solicita /prefix en 6b6t para consultar opciones oficiales disponibles. Solo envía comando oficial; no inventa opciones.")
+    private final Setting<RankOption> selectedRank = sgActions.add(new EnumSetting.Builder<RankOption>()
+        .name("rango-seleccionado")
+        .description("Elige el rango/prefijo que quieres solicitar.")
+        .defaultValue(RankOption.NINGUNO)
+        .build());
+
+    private final Setting<Boolean> applyRank = sgActions.add(new BoolSetting.Builder()
+        .name("aplicar-rango")
+        .description("Envía /prefix con el rango seleccionado (solo en 6b6t).")
         .defaultValue(false)
         .build());
 
-    private final Setting<Boolean> openPrefixSelector = sgActions.add(new BoolSetting.Builder()
-        .name("abrir-selector-prefix")
-        .description("1 clic: envía /prefix oficial en 6b6t. El selector/opciones dependen del servidor. Requiere permisos/rango reales.")
+    private final Setting<Boolean> openPrefixMenu = sgActions.add(new BoolSetting.Builder()
+        .name("abrir-menu-prefix")
+        .description("Abre el menú oficial /prefix del servidor.")
         .defaultValue(false)
         .build());
 
-    private final Setting<String> prefixToRequest = sgActions.add(new StringSetting.Builder()
-        .name("prefijo-a-solicitar")
-        .description("Prefijo observado a solicitar. Solo se enviará si coincide con una opción observada del servidor y pulsas 'aplicar-prefijo-observado'.")
-        .defaultValue("")
-        .build());
-
-    private final Setting<Boolean> applyObservedPrefix = sgActions.add(new BoolSetting.Builder()
-        .name("aplicar-prefijo-observado")
-        .description("Solicita el prefijo escrito arriba SOLO si fue observado en respuestas del servidor. Envía comando oficial /prefix <valor> bajo solicitud explícita; si el servidor no lo acepta, se mostrará rechazo.")
+    private final Setting<Boolean> refreshTab = sgActions.add(new BoolSetting.Builder()
+        .name("actualizar-tablist")
+        .description("Escanea la tablist ahora.")
         .defaultValue(false)
-        .build());
-
-    private final Setting<QuickAction> quickAction = sgActions.add(new EnumSetting.Builder<QuickAction>()
-        .name("accion-rapida")
-        .description("Acción rápida con un clic.")
-        .defaultValue(QuickAction.NONE)
         .build());
 
     private final Setting<Boolean> clearStatus = sgActions.add(new BoolSetting.Builder()
         .name("limpiar-estado")
-        .description("Limpia estado local mostrado. No envía comandos.")
+        .description("Limpia el estado local.")
         .defaultValue(false)
         .build());
+
+    private final SettingGroup sgAuto = settings.createGroup("Automatización");
+    private final SettingGroup sgStatus = settings.createGroup("Estado y Roles");
+    private final SettingGroup sgCache = settings.createGroup("Cache jugadores cercanos");
 
     private final Setting<Boolean> scanTablist = sgAuto.add(new BoolSetting.Builder()
         .name("escanear-tablist-automatico")
@@ -167,13 +164,34 @@ public class RangosChangeModule extends Module {
         if (!isActive()) return;
         updateConnectionStatus();
 
-        if (clearStatus.get()) { resetBool(clearStatus); clearLocalState("Estado local limpiado"); }
-        if (consultOptions.get()) { resetBool(consultOptions); requestPrefixSelector("consultar-opciones"); }
-        if (openPrefixSelector.get()) { resetBool(openPrefixSelector); requestPrefixSelector("abrir-selector-prefix"); }
-        if (applyObservedPrefix.get()) { resetBool(applyObservedPrefix); requestObservedPrefix(); }
+        if (clearStatus.get()) {
+            resetBool(clearStatus);
+            clearLocalState("Estado local limpiado");
+        }
 
-        QuickAction action = quickAction.get();
-        if (action != null && action != QuickAction.NONE) { quickAction.set(QuickAction.NONE); handleQuickAction(action); }
+        if (applyRank.get()) {
+            resetBool(applyRank);
+            RankOption opt = selectedRank.get();
+            if (opt == null || opt == RankOption.NINGUNO) {
+                verificationState.set("Opción no disponible.");
+                lastResponse.set("Selecciona un rango en el menú desplegable.");
+                info("Selecciona un rango primero.");
+            } else {
+                sendPrefixCommand("prefix " + opt.value, "menu-desplegable", "aplicar rango " + opt.value);
+            }
+        }
+
+        if (openPrefixMenu.get()) {
+            resetBool(openPrefixMenu);
+            sendPrefixCommand("prefix", "abrir-menu", "abrir selector oficial");
+        }
+
+        if (refreshTab.get()) {
+            resetBool(refreshTab);
+            inspectPlayerTablist();
+            addHistory("Tablist actualizada manualmente");
+            notifyState("Tablist actualizada");
+        }
 
         long now = System.currentTimeMillis();
         if (scanTablist.get() && now - lastTabScanMs > TAB_SCAN_INTERVAL_MS) { lastTabScanMs = now; inspectPlayerTablist(); }
@@ -183,16 +201,6 @@ public class RangosChangeModule extends Module {
             lastResponse.set("Sin respuesta clara del servidor a /prefix (15s). Verifica manualmente.");
             addHistory("Timeout /prefix");
             notifyState("Timeout esperando respuesta /prefix");
-        }
-    }
-
-    private void handleQuickAction(QuickAction action) {
-        if (action == null) return;
-        switch (action) {
-            case OPEN_PREFIX_SELECTOR -> requestPrefixSelector("accion-rapida");
-            case REFRESH_TABLIST -> { inspectPlayerTablist(); addHistory("Tablist escaneada manualmente"); notifyState("Tablist escaneada"); }
-            case CLEAR_LOCAL_STATE -> clearLocalState("Estado local limpiado");
-            case NONE -> { }
         }
     }
 
@@ -221,25 +229,6 @@ public class RangosChangeModule extends Module {
         String lower = msg.toLowerCase(Locale.ROOT);
         detectRankFromMessage(msg, lower);
         detectPrefixResponse(msg, lower);
-    }
-
-    private void requestPrefixSelector(String source) { sendPrefixCommand("prefix", source, "abrir/consultar selector oficial /prefix"); }
-
-    private void requestObservedPrefix() {
-        String requested = sanitizeRequestedPrefix(prefixToRequest.get());
-        if (requested.isBlank()) {
-            verificationState.set("Opción no disponible.");
-            lastResponse.set("Escribe un prefijo observado antes de aplicar.");
-            addHistory("Aplicar prefijo: vacío");
-            return;
-        }
-        if (!observedPrefixOptions.contains(requested.toLowerCase(Locale.ROOT))) {
-            verificationState.set("Opción no disponible.");
-            lastResponse.set("El prefijo '" + requested + "' no ha sido observado en respuestas del servidor. No se envía.");
-            addHistory("Prefijo no observado: " + requested);
-            return;
-        }
-        sendPrefixCommand("prefix " + requested, "aplicar-prefijo-observado", "solicitar prefijo observado");
     }
 
     private void sendPrefixCommand(String command, String source, String op) {
