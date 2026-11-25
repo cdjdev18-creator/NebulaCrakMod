@@ -1,4 +1,6 @@
 {
   "key.nebulacrakmod.gui": "Abrir GUI de Nebula",
-  "category.nebulacrakmod": "NebulaCrakMod"
+  "category.nebulacrakmod": "NebulaCrakMod",
+  "nebulacrakmod.module.nebula-skin-sync": "Nebula SkinSync",
+  "nebulacrakmod.module.nebula-skin-sync.description": "Sincroniza skins personalizadas entre clientes Nebula compatibles mediante servicio externo."
 }

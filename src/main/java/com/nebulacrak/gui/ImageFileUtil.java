@@ -122,15 +122,30 @@ public final class ImageFileUtil {
         if (base != null) return base;
         try {
             BufferedImage img = ImageIO.read(path.toFile());
-            if (img == null) return "No se pudo leer la skin PNG.";
-            int w = img.getWidth();
-            int h = img.getHeight();
-            boolean valid = (w == 64 && h == 64) || (w == 64 && h == 32) || (w == 128 && h == 128);
-            if (!valid) return "Skin inválida. Dimensiones admitidas: 64x64, 64x32, 128x128.";
+            return validateSkinImage(img);
         } catch (Throwable e) {
             LOG.warn("[ImageFileUtil] validateSkinPng failed for {}", path, e);
             return "No se pudo validar la skin PNG.";
         }
+    }
+
+    public static String validateSkinPngBytes(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) return "Skin vacía.";
+        if (bytes.length > 10L * 1024L * 1024L) return "Skin demasiado grande (máx 10MB).";
+        try {
+            BufferedImage img = ImageIO.read(new java.io.ByteArrayInputStream(bytes));
+            return validateSkinImage(img);
+        } catch (Throwable e) {
+            return "No se pudo validar la skin PNG.";
+        }
+    }
+
+    private static String validateSkinImage(BufferedImage img) {
+        if (img == null) return "No se pudo leer la skin PNG.";
+        int w = img.getWidth();
+        int h = img.getHeight();
+        boolean valid = (w == 64 && h == 64) || (w == 64 && h == 32) || (w == 128 && h == 128);
+        if (!valid) return "Skin inválida. Dimensiones admitidas: 64x64, 64x32, 128x128.";
         return null;
     }
 

@@ -9,6 +9,7 @@ import com.nebulacrak.modules.PlayerRadarModule;
 import com.nebulacrak.modules.RangosChangeModule;
 import com.nebulacrak.modules.SkinCharPlusModule;
 import com.nebulacrak.modules.StreamPrivacyModule;
+import com.nebulacrak.modules.NebulaSkinSyncModule;
 import com.nebulacrak.modules.TranslatePlusModule;
 import com.nebulacrak.translation.TranslationManager;
 import meteordevelopment.meteorclient.settings.BoolSetting;
@@ -68,6 +69,7 @@ public class NebulaModules {
         CATEGORY_PLAYER.add(new PlayerDetectorModule());
         CATEGORY_PLAYER.add(new PlayerRadarModule());
         CATEGORY_PLAYER.add(new SkinCharPlusModule());
+        CATEGORY_PLAYER.add(new NebulaSkinSyncModule());
         CATEGORY_CHAT.add(new ChatDetectorModule());
         CATEGORY_CHAT.add(new MuteChatPlusModule());
         CATEGORY_CHAT.add(new LoginCensorModule());

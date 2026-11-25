@@ -3,6 +3,7 @@ package com.nebulacrak.modules;
 import com.nebulacrak.gui.ImageFileUtil;
 import com.nebulacrak.gui.NebulaModules;
 import com.nebulacrak.gui.NebulaTextureManager;
+import com.nebulacrak.modules.NebulaSkinSyncModule;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
@@ -238,6 +239,10 @@ public class SkinCharPlusModule extends Module {
                 lastAppliedPath = p;
                 lastAppliedSlot = slot;
                 syncStatus.set("LOCAL");
+                try {
+                    NebulaSkinSyncModule sync = NebulaSkinSyncModule.INSTANCE;
+                    if (sync != null) sync.publishIfEnabled(Path.of(p), model.name());
+                } catch (Throwable ignored) {}
                 if (notify) {
                     if (applied) info("Skin aplicada localmente: " + new File(p).getName() + " (" + model.name().toLowerCase(Locale.ROOT) + ", slot " + (slot + 1) + "). No se sincroniza PNG automáticamente; 6b6t usa /skin <jugador> si habilitas sync.");
                     else info("Skin validada/cargada: " + new File(p).getName() + ". No se pudo aplicar localmente en esta sesión.");
