@@ -1116,13 +1116,14 @@ public class NebulaGUIScreen extends Screen {
         }
         if (languageDropdownOpen) {
             int dropW = (NebulaConfig.uiStyle == NebulaConfig.UIStyle.EDICION ? 62 : 72), dropX = this.width - dropW - 8, dropY = topBarH() - 2, itemH = (NebulaConfig.uiStyle == NebulaConfig.UIStyle.EDICION ? 16 : 18);
-            if (mx >= dropX && mx <= dropX + dropW) {
-                if (my >= dropY && my <= dropY + itemH) { changeLanguage(LanguageManager.Language.ES_MX); return true; }
-                if (my >= dropY + itemH && my <= dropY + itemH * 2) { changeLanguage(LanguageManager.Language.EN_US); return true; }
+            if (languageButton != null && languageButton.isMouseOver(mx, my)) return super.mouseClicked(event, doubleClick);
+            boolean insideDropdown = mx >= dropX && mx <= dropX + dropW && my >= dropY && my <= dropY + itemH * 2;
+            if (insideDropdown) {
+                if (my < dropY + itemH) changeLanguage(LanguageManager.Language.ES_MX);
+                else changeLanguage(LanguageManager.Language.EN_US);
+                return true;
             }
             languageDropdownOpen = false;
-            if (languageButton != null && languageButton.isMouseOver(mx, my)) return super.mouseClicked(event, doubleClick);
-            return true;
         }
         if (event.button() == 0 && NebulaConfig.uiStyle == NebulaConfig.UIStyle.EDICION) {
             String panelId = panelIdAt(mx, my);

@@ -453,7 +453,7 @@ public class MuteChatPlusModule extends Module {
                 for (Friend f : friends) {
                     if (f == null) continue;
                     String fn = f.getName();
-                    if (fn != null && !name.isEmpty() && fn.equalsIgnoreCase(name)) return true;
+                    if (fn != null && !fn.isEmpty() && fn.equalsIgnoreCase(name)) return true;
                 }
             }
         } catch (RuntimeException ignored) {
